@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
-import { X, User, UserPlus, Check } from 'lucide-react';
+import { ArrowLeft, User, Phone, Plus, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type RiderSelectionModalProps = {
   onClose: () => void;
@@ -9,68 +10,117 @@ type RiderSelectionModalProps = {
 };
 
 const RiderSelectionModal = ({ onClose, onSelect }: RiderSelectionModalProps) => {
-  const [selectedRider, setSelectedRider] = useState('me');
+  const [selectedRider, setSelectedRider] = useState<'me' | 'other'>('me');
+  const [newRiderName, setNewRiderName] = useState('');
+  const [newRiderPhone, setNewRiderPhone] = useState('');
+  const [addingRider, setAddingRider] = useState(false);
 
-  const handleSelect = (rider: string) => {
-    setSelectedRider(rider);
+  const handleSubmit = () => {
+    if (selectedRider === 'me') {
+      onSelect('For me');
+    } else if (newRiderName) {
+      onSelect(`For ${newRiderName}`);
+    }
+    onClose();
   };
 
-  const handleDone = () => {
-    onSelect(selectedRider);
-    onClose();
+  const startAddingRider = () => {
+    setAddingRider(true);
+    setSelectedRider('other');
   };
 
   return (
     <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
       <div className="p-4 max-w-lg mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">
-            Switch rider
-          </h1>
           <Button variant="ghost" onClick={onClose} className="p-2">
-            <X className="h-6 w-6" />
+            <ArrowLeft className="h-6 w-6" />
           </Button>
         </div>
 
-        <div className="space-y-4">
-          <div 
-            className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-100 cursor-pointer"
-            onClick={() => handleSelect('me')}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-                <User className="h-6 w-6 text-gray-500" />
-              </div>
-              <span className="text-xl font-medium">Me</span>
+        <h1 className="text-3xl font-bold mb-6">
+          {addingRider ? 'Add a rider' : 'Who is this ride for?'}
+        </h1>
+
+        {addingRider ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <Input
+                type="text"
+                placeholder="Rider's full name"
+                value={newRiderName}
+                onChange={(e) => setNewRiderName(e.target.value)}
+                className="w-full"
+              />
             </div>
-            {selectedRider === 'me' && (
-              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-                <Check className="h-5 w-5 text-white" />
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-gray-200 my-2"></div>
-
-          <div 
-            className="flex items-center p-4 rounded-lg hover:bg-gray-100 cursor-pointer"
-            onClick={() => handleSelect('someone_else')}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-                <UserPlus className="h-6 w-6 text-gray-500" />
-              </div>
-              <span className="text-xl font-medium">Order ride for someone else</span>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
+              <Input
+                type="tel"
+                placeholder="(123) 456-7890"
+                value={newRiderPhone}
+                onChange={(e) => setNewRiderPhone(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            
+            <p className="text-sm text-gray-500 mt-4">
+              This person will get text updates about this ride.
+            </p>
+            
+            <div className="flex space-x-4 mt-6">
+              <Button 
+                variant="outline"
+                className="flex-1"
+                onClick={() => setAddingRider(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1 bg-black text-white"
+                disabled={!newRiderName || !newRiderPhone}
+                onClick={handleSubmit}
+              >
+                Save
+              </Button>
             </div>
           </div>
+        ) : (
+          <div className="space-y-4">
+            <Button 
+              variant={selectedRider === 'me' ? 'default' : 'outline'} 
+              className="w-full flex items-center justify-between p-4 h-auto text-lg"
+              onClick={() => setSelectedRider('me')}
+            >
+              <div className="flex items-center">
+                <User className="h-6 w-6 mr-3" />
+                <span>For me</span>
+              </div>
+              {selectedRider === 'me' && (
+                <div className="h-4 w-4 rounded-full bg-white"></div>
+              )}
+            </Button>
+            
+            {/* Add saved riders here if there are any */}
+            
+            <Button 
+              variant="outline" 
+              className="w-full flex items-center justify-start p-4 h-auto text-lg"
+              onClick={startAddingRider}
+            >
+              <Plus className="h-6 w-6 mr-3" />
+              <span>Add a rider</span>
+            </Button>
 
-          <Button 
-            className="w-full bg-black hover:bg-gray-800 text-white p-4 h-auto text-lg mt-8"
-            onClick={handleDone}
-          >
-            Done
-          </Button>
-        </div>
+            <Button 
+              className="w-full bg-black hover:bg-gray-800 text-white p-4 h-auto text-lg mt-4"
+              onClick={handleSubmit}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
