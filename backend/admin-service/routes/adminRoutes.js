@@ -2,7 +2,8 @@ import express from "express";
 import {
   authenticateToken,
   authorizeRoles
-} from "../middleware/authMiddleware.js";
+} from "../../shared/auth/authMiddleware.js"; // ✅ Updated path to shared middleware
+
 import {
   addDriver,
   addCustomer,
@@ -17,22 +18,22 @@ import {
 
 const router = express.Router();
 
-// Secure all routes
+// ✅ Protect all routes with authentication and admin-only access
 router.use(authenticateToken);
 router.use(authorizeRoles("admin"));
 
-// Admin management
+// 👤 Admin management
 router.post("/drivers", addDriver);
 router.post("/customers", addCustomer);
 router.get("/users/:userId", getUser);
 
-// Stats
+// 📊 Stats
 router.get("/stats/revenue", getRevenueByDay);
 router.get("/stats/rides-per-area", getRidesPerArea);
 router.get("/charts/rides-per-driver", getRidesPerDriver);
 router.get("/charts/rides-per-customer", getRidesPerCustomer);
 
-// Billing
+// 💳 Billing
 router.get("/bills/search", searchBills);
 router.get("/bills/:billId", getBillById);
 

@@ -1,4 +1,4 @@
-import User from '../models/user.js';
+import User from '../../auth-service/models/user.js';
 import jwt from 'jsonwebtoken';
 
 // JWT Auth Middleware
