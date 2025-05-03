@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,17 +7,16 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import HomePage from "./pages/HomePage";
 import DrivePage from "./pages/DrivePage";
-import BusinessPage from "./pages/BusinessPage";
 import DeliverPage from "./pages/DeliverPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import RidePage from "./pages/RidePage";
 import ProfilePage from "./pages/ProfilePage";
 import ActivityPage from "./pages/ActivityPage";
-import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
-
-
+import DriverSignupPage from "./pages/DriverSignupPage";
+import DriverLoginPage from "./pages/DriverLoginPage";
+import BillingPage from "./pages/BillingPage";
 
 const queryClient = new QueryClient();
 
@@ -36,9 +36,10 @@ const App = () => (
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/activity" element={<ActivityPage />} />
-            <Route path="/profile/:username" element={<Profile />} />
+            <Route path="/driver/signup" element={<DriverSignupPage />} />
+            <Route path="/driver/login" element={<DriverLoginPage />} />
+            <Route path="/billing" element={<BillingPage />} />
             <Route path="*" element={<NotFound />} />
-
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
