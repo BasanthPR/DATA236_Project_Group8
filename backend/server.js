@@ -8,6 +8,7 @@ import billingRoutes from "./routes/billing.js";
 import adminAuthRoutes from "./routes/adminAuthRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import profileRoutes from "./routes/profileRoute.js"; 
+import driverRoutes from "./routes/driverRoute.js";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use('/api/rides', rideRoutes);
 app.use('/api/billing', billingRoutes);
 app.use("/api/admin", adminAuthRoutes);
 app.use("/api/admin", adminRoutes);
+app.use('/api/driver', driverRoutes); // Driver routes
 
 app.use('/api/profile', profileRoutes); 
 
