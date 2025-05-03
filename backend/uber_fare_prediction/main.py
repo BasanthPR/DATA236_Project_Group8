@@ -4,6 +4,7 @@ from datetime import datetime
 from math import radians, cos, sin, asin, sqrt
 import numpy as np
 import joblib
+from dateutil.parser import parse  # ✅ add this
 
 app = FastAPI()
 model = joblib.load("fare_predictor.pkl")  # same folder
@@ -14,7 +15,7 @@ class RideRequest(BaseModel):
     dropoff_latitude: float
     dropoff_longitude: float
     passenger_count: int
-    pickup_datetime: str  # format: "YYYY-MM-DD HH:MM:SS"
+    pickup_datetime: str  # format: ISO or "YYYY-MM-DDTHH:MM:SS"
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371  # Radius of earth in kilometers
@@ -30,7 +31,7 @@ def extract_features(data: dict):
         data['pickup_latitude'], data['pickup_longitude'],
         data['dropoff_latitude'], data['dropoff_longitude']
     )
-    dt = datetime.strptime(data['pickup_datetime'], "%Y-%m-%d %H:%M:%S")
+    dt = parse(data['pickup_datetime'])  # ✅ flexible parser
     return np.array([
         data['pickup_longitude'],
         data['pickup_latitude'],

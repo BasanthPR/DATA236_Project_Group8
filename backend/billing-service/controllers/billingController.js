@@ -54,8 +54,7 @@ const deleteBill = async (req, res) => {
   }
 };
 
-// Search Bills (with optional filters)
-// Search Bills (with optional filters + improved query logic)
+// Search Bills with optional filters
 const searchBills = async (req, res) => {
   try {
     const {
@@ -76,7 +75,7 @@ const searchBills = async (req, res) => {
       if (startDate) dateRange.$gte = new Date(startDate);
       if (endDate) {
         const to = new Date(endDate);
-        to.setDate(to.getDate() + 1);  // Include full end date
+        to.setDate(to.getDate() + 1);  // Include entire end date
         dateRange.$lt = to;
       }
       filters.push({ createdAt: dateRange });
@@ -90,26 +89,20 @@ const searchBills = async (req, res) => {
       filters.push({ totalAmount: amountRange });
     }
 
-    // General search (billingId, _id, rideId, customerId, driverId)
+    // General search (by billingId, _id, rideId, customerId, driverId)
     if (q) {
-      const orFilters = [
-        { billingId: { $regex: q, $options: "i" } }
-      ];
-
+      const orFilters = [{ billingId: { $regex: q, $options: "i" } }];
       if (isValidObjectId(q)) {
         orFilters.push({ _id: new Types.ObjectId(q) });
         orFilters.push({ rideId: new Types.ObjectId(q) });
         orFilters.push({ customerId: new Types.ObjectId(q) });
         orFilters.push({ driverId: new Types.ObjectId(q) });
       }
-
       filters.push({ $or: orFilters });
     }
 
-    // Combine all filters
     const query = filters.length ? { $and: filters } : {};
 
-    // Query execution
     const totalResults = await Billing.countDocuments(query);
     const bills = await Billing.find(query)
       .skip((page - 1) * parseInt(limit))
@@ -122,13 +115,11 @@ const searchBills = async (req, res) => {
       limit: parseInt(limit),
       bills,
     });
-
   } catch (err) {
     console.error("Search Bills Error:", err.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
 
 // Search Bills by Customer ID
 const searchBillsByCustomerId = async (req, res) => {
@@ -156,34 +147,11 @@ const searchBillsByCustomerId = async (req, res) => {
   }
 };
 
-// Predict Fare
-const predictFare = async (req, res) => {
-  try {
-    const { pickupLocation, dropoffLocation, pickupDatetime } = req.body;
-
-    const baseFare = 5;
-    const perMileRate = 2.5;
-    const distance = Math.random() * 10 + 2;
-    const surgeMultiplier = pickupDatetime?.includes("18:00") ? 1.5 : 1.0;
-
-    const predictedFare = baseFare + perMileRate * distance * surgeMultiplier;
-
-    res.status(200).json({
-      predictedFare: +predictedFare.toFixed(2),
-      estimatedDistance: +distance.toFixed(2),
-      surgeMultiplier,
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// Exports
+// ✅ Export only real billing logic — no predictFare here
 export {
   createBill,
   getBillById,
   deleteBill,
   searchBills,
-  searchBillsByCustomerId,
-  predictFare,
+  searchBillsByCustomerId
 };

@@ -3,10 +3,11 @@ import {
   createBill,
   getBillById,
   deleteBill,
-  searchBills,
-  predictFare
-} from "../controllers/billingController.js";
+  searchBills
+} from "../controllers/billingController.js"; // ✅ only billing logic
+
 import { authenticateToken, authorizeRoles } from '../../shared/auth/authMiddleware.js';
+import { predictFare } from "../controllers/predictFareController.js"; // ✅ FastAPI ML model only
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ router.delete("/:billingId", authenticateToken, authorizeRoles("admin", "custome
 
 /**
  * @route   POST /predict-fare
- * @desc    Predict fare using FastAPI model
+ * @desc    Predict fare using FastAPI ML model
  * @access  Protected
  */
 router.post("/predict-fare", authenticateToken, predictFare);
