@@ -1,42 +1,60 @@
+// controllers/customerReviewController.js
 import CustomerReview from '../models/customerReview.js';
 
-export const addCustomerReview = async (req, res) => {
+// Add a review (customer only)
+export const addReview = async (req, res, next) => {
   try {
-    const { driverId, rating, comment } = req.body;
-    const customerId = req.userId;
-
-    if (!driverId || !rating) {
-      return res.status(400).json({ message: 'driverId and rating are required' });
-    }
-
-    const review = new CustomerReview({
-      customerId,
-      driverId,
-      rating,
-      comment
+    const r = new CustomerReview({
+      ...req.body,
+      customerId: req.user.id
     });
-
-    await review.save();
-
-    res.status(201).json({
-      message: 'Review submitted successfully',
-      review
-    });
+    await r.save();
+    res.status(201).json(r);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to submit review', error: err.message });
+    next(err);
   }
 };
 
-export const getCustomerReviews = async (req, res) => {
+// Get all own reviews (or all if admin)
+export const getReviews = async (req, res, next) => {
   try {
-    const reviews = await CustomerReview.find({ customerId: req.userId })
-      .populate('driverId', 'firstName lastName');
-
-    res.status(200).json({
-      totalReviews: reviews.length,
-      reviews
-    });
+    const filter = req.user.role === 'admin'
+      ? {}
+      : { customerId: req.user.id };
+    const reviews = await CustomerReview.find(filter);
+    res.json(reviews);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch reviews', error: err.message });
+    next(err);
+  }
+};
+
+// Update a single review (owner or admin)
+export const updateReview = async (req, res, next) => {
+  try {
+    const review = await CustomerReview.findById(req.params.id);
+    if (!review) return res.status(404).json({ message: 'Not found' });
+    if (req.user.role !== 'admin' && review.customerId !== req.user.id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    Object.assign(review, req.body);
+    await review.save();
+    res.json(review);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Delete a review (owner or admin)
+export const deleteReview = async (req, res, next) => {
+  try {
+    const review = await CustomerReview.findById(req.params.id);
+    if (!review) return res.status(404).json({ message: 'Not found' });
+    if (req.user.role !== 'admin' && review.customerId !== req.user.id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    await review.remove();
+    res.status(204).send();
+  } catch (err) {
+    next(err);
   }
 };

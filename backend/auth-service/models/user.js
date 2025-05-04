@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     default: () => new mongoose.Types.ObjectId().toHexString()
   },
-  ssn: { type: String, unique: true },
+  ssn: { type: String, unique: false },
   role: { type: String, enum: ['customer', 'driver'], required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
