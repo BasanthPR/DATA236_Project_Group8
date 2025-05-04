@@ -1,0 +1,4 @@
+{"level":"info","message":"🔎 ML response payload:","predicted_fare":50.8,"timestamp":"2025-05-04T21:48:11.394Z"}
+{"level":"info","message":"📤 Published ride request RIDE-1746395291358-yxhipd20q to Kafka","timestamp":"2025-05-04T21:48:11.521Z"}
+{"level":"info","message":"🔎 ML response payload:","predicted_fare":50.8,"timestamp":"2025-05-04T21:49:09.796Z"}
+{"level":"info","message":"📤 Published ride request RIDE-1746395349792-yz23q2w5m to Kafka","timestamp":"2025-05-04T21:49:09.888Z"}
