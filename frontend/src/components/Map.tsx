@@ -20,7 +20,7 @@ const Map = ({ pickupLocation, dropoffLocation, className = '' }: MapProps) => {
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/mapbox-token');
+        const response = await fetch('http://localhost:4001/api/mapbox-token');
         const data = await response.json();
         setMapboxToken(data.token);
       } catch (error) {

@@ -16,7 +16,7 @@ import ActivityPage from "./pages/ActivityPage";
 import NotFound from "./pages/NotFound";
 import DriverSignupPage from "./pages/DriverSignupPage";
 import DriverLoginPage from "./pages/DriverLoginPage";
-import BillingPage from "./pages/BillingPage";
+// import BillingPage from "./pages/BillingPage";
 
 const queryClient = new QueryClient();
 
@@ -38,7 +38,7 @@ const App = () => (
             <Route path="/activity" element={<ActivityPage />} />
             <Route path="/driver/signup" element={<DriverSignupPage />} />
             <Route path="/driver/login" element={<DriverLoginPage />} />
-            <Route path="/billing" element={<BillingPage />} />
+            {/* <Route path="/billing" element={<BillingPage />} /> */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

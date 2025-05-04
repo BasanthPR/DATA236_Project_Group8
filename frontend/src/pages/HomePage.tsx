@@ -20,7 +20,7 @@ const HomePage = () => {
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/mapbox-token");
+        const res = await fetch("http://localhost:4001/api/mapbox-token");
         const data = await res.json();
         setMapboxToken(data.token);
       } catch (error) {
