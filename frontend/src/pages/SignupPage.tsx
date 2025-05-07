@@ -31,7 +31,7 @@ const SignupPage = () => {
     }
   
     try {
-      const response = await fetch("http://localhost:3000/api/auth/signup", {
+      const response = await fetch("http://localhost:4001/api/auth/signup/customer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

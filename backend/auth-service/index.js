@@ -16,6 +16,15 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.get('/api/mapbox-token', (req, res) => {
+  const token = process.env.MAPBOX_TOKEN;
+  if (!token) {
+    return res
+      .status(500)
+      .json({ error: 'Mapbox token not configured on the server.' });
+  }
+  res.json({ token });
+});
 
 // Health Check Endpoint
 app.get('/', (req, res) => {
@@ -29,7 +38,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/auth-servi
 // Connect to MongoDB and start server
 const startServer = async () => {
   try {
-    await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+    await mongoose.connect(MONGO_URI );
     console.log(' ✅ Connected to MongoDB (auth-service)');
 
     app.listen(PORT, () => {

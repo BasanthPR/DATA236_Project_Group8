@@ -6,7 +6,6 @@ import MainNavbar from "@/components/MainNavbar";
 import Map from "@/components/Map";
 import axios from "axios";
 
-
 const HomePage = () => {
   const [pickup, setPickup] = useState("");
   const [dropoff, setDropoff] = useState("");
@@ -15,6 +14,8 @@ const HomePage = () => {
   const [mapboxToken, setMapboxToken] = useState("");
   const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);
   const [dropoffSuggestions, setDropoffSuggestions] = useState<any[]>([]);
+  // Track which field is active for showing suggestions
+  const [activeField, setActiveField] = useState<'pickup'|'dropoff'|null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,12 +34,15 @@ const HomePage = () => {
   useEffect(() => {
     if (!mapboxToken || pickup.length < 3) return setPickupSuggestions([]);
     const controller = new AbortController();
-    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(pickup)}.json?access_token=${mapboxToken}&autocomplete=true&limit=5`, {
-      signal: controller.signal,
-    })
-      .then(res => res.json())
-      .then(data => setPickupSuggestions(data.features || []))
-      .catch(err => {
+    fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+        pickup
+      )}.json?access_token=${mapboxToken}&autocomplete=true&limit=5`,
+      { signal: controller.signal }
+    )
+      .then((res) => res.json())
+      .then((data) => setPickupSuggestions(data.features || []))
+      .catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       });
     return () => controller.abort();
@@ -47,18 +51,22 @@ const HomePage = () => {
   useEffect(() => {
     if (!mapboxToken || dropoff.length < 3) return setDropoffSuggestions([]);
     const controller = new AbortController();
-    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(dropoff)}.json?access_token=${mapboxToken}&autocomplete=true&limit=5`, {
-      signal: controller.signal,
-    })
-      .then(res => res.json())
-      .then(data => setDropoffSuggestions(data.features || []))
-      .catch(err => {
+    fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+        dropoff
+      )}.json?access_token=${mapboxToken}&autocomplete=true&limit=5`,
+      { signal: controller.signal }
+    )
+      .then((res) => res.json())
+      .then((data) => setDropoffSuggestions(data.features || []))
+      .catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       });
     return () => controller.abort();
   }, [dropoff, mapboxToken]);
 
   const handleSeePrices = async () => {
+    navigate("/login");
     if (!pickup || !dropoff || !pickupLocation || !dropoffLocation) {
       alert("Please enter both pickup and dropoff locations.");
       return;
@@ -76,18 +84,12 @@ const HomePage = () => {
       });
 
       console.log("Ride saved from homepage:", res.data);
-      navigate("/ride-options", { state: res.data }); // Navigate to next screen with ride info
+      navigate("/ride-options", { state: res.data });
     } catch (err) {
       console.error("Error saving ride from homepage:", err);
       alert("Something went wrong. Try again.");
     }
   };
-
-  const suggestions = [
-    { id: "courier", title: "Courier", description: "Uber makes same-day item delivery easier than ever.", link: "/deliver" },
-    { id: "grocery", title: "Grocery", description: "Get groceries delivered to your door with Uber Eats.", link: "https://www.ubereats.com/" },
-    { id: "hourly", title: "Hourly", description: "Request a trip for a block of time and make multiple stops.", link: "/ride" }
-  ];
 
   return (
     <div className="min-h-screen bg-white text-black flex flex-col">
@@ -112,18 +114,20 @@ const HomePage = () => {
                     className="w-full px-4 py-3 pl-8 border border-gray-300 rounded-md"
                     value={pickup}
                     onChange={(e) => setPickup(e.target.value)}
+                    onFocus={() => setActiveField('pickup')}
+                    onBlur={() => setTimeout(() => setActiveField(null), 200)}
                   />
-                  {pickupSuggestions.length > 0 && (
+                  {activeField === 'pickup' && pickupSuggestions.length > 0 && (
                     <ul className="absolute z-50 top-full left-0 right-0 bg-white border rounded-md shadow mt-1 max-h-60 overflow-y-auto">
                       {pickupSuggestions.map((place) => (
                         <li
                           key={place.id}
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => {
+                          onMouseDown={() => {
                             setPickup(place.place_name);
                             setPickupLocation(place.center);
                             setPickupSuggestions([]);
-                            (document.activeElement as HTMLElement)?.blur();
+                            setActiveField(null);
                           }}
                         >
                           {place.place_name}
@@ -142,18 +146,20 @@ const HomePage = () => {
                     className="w-full px-4 py-3 pl-8 border border-gray-300 rounded-md"
                     value={dropoff}
                     onChange={(e) => setDropoff(e.target.value)}
+                    onFocus={() => setActiveField('dropoff')}
+                    onBlur={() => setTimeout(() => setActiveField(null), 200)}
                   />
-                  {dropoffSuggestions.length > 0 && (
+                  {activeField === 'dropoff' && dropoffSuggestions.length > 0 && (
                     <ul className="absolute z-50 top-full left-0 right-0 bg-white border rounded-md shadow mt-1 max-h-60 overflow-y-auto">
                       {dropoffSuggestions.map((place) => (
                         <li
                           key={place.id}
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => {
+                          onMouseDown={() => {
                             setDropoff(place.place_name);
                             setDropoffLocation(place.center);
                             setDropoffSuggestions([]);
-                            (document.activeElement as HTMLElement)?.blur();
+                            setActiveField(null);
                           }}
                         >
                           {place.place_name}
@@ -207,7 +213,11 @@ const HomePage = () => {
         <section className="py-12 px-4 md:px-8 lg:px-16 max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold mb-8">Suggestions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {suggestions.map((suggestion) => (
+            {[
+              { id: "courier", title: "Courier", description: "Uber makes same-day item delivery easier than ever.", link: "/deliver" },
+              { id: "grocery", title: "Grocery", description: "Get groceries delivered to your door with Uber Eats.", link: "https://www.ubereats.com/" },
+              { id: "hourly", title: "Hourly", description: "Request a trip for a block of time and make multiple stops.", link: "/ride" }
+            ].map((suggestion) => (
               <div key={suggestion.id} className="bg-gray-100 p-6 rounded-lg">
                 <h3 className="text-xl font-bold mb-2">{suggestion.title}</h3>
                 <p className="text-gray-700 mb-6">{suggestion.description}</p>

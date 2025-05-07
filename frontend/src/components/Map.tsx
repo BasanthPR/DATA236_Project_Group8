@@ -55,7 +55,7 @@ const Map = ({ pickupLocation, dropoffLocation, className = '' }: MapProps) => {
         mapboxgl.accessToken = mapboxToken;
         map.current = new mapboxgl.Map({
           container: mapContainer.current,
-          style: 'mapbox://styles/mapbox/dark-v11',
+          style: 'mapbox://styles/mapbox/streets-v11', // full-color streets
           center: [-74.006, 40.7128],
           zoom: 12,
         });
@@ -81,91 +81,79 @@ const Map = ({ pickupLocation, dropoffLocation, className = '' }: MapProps) => {
     };
   }, [mapboxToken]);
 
-  // Add markers and draw route
+  // Draw route & markers
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
-
     const mapInstance = map.current;
 
-    // Clear markers
-    const markers = document.querySelectorAll('.mapboxgl-marker');
-    markers.forEach(marker => marker.remove());
-
-    // Add pickup marker
-    if (pickupLocation) {
-      const el = document.createElement('div');
-      el.className = 'pickup-marker';
-      el.style.backgroundColor = '#276EF1';
-      el.style.width = '15px';
-      el.style.height = '15px';
-      el.style.borderRadius = '50%';
-      el.style.border = '2px solid white';
-      new mapboxgl.Marker(el).setLngLat(pickupLocation).addTo(mapInstance);
+    // Cleanup existing layers and sources
+    if (mapInstance.getLayer('route-halo')) {
+      mapInstance.removeLayer('route-line');
+      mapInstance.removeLayer('route-halo');
+      mapInstance.removeSource('route');
     }
+    // Clear old markers/popups
+    document.querySelectorAll('.mapboxgl-marker').forEach(m => m.remove());
+    document.querySelectorAll('.mapboxgl-popup').forEach(p => p.remove());
 
-    // Add dropoff marker
-    if (dropoffLocation) {
-      const el = document.createElement('div');
-      el.className = 'dropoff-marker';
-      el.style.backgroundColor = '#05A357';
-      el.style.width = '15px';
-      el.style.height = '15px';
-      el.style.borderRadius = '50%';
-      el.style.border = '2px solid white';
-      new mapboxgl.Marker(el).setLngLat(dropoffLocation).addTo(mapInstance);
-    }
-
-    // Fit bounds
     if (pickupLocation && dropoffLocation) {
+      // Fit bounds
       const bounds = new mapboxgl.LngLatBounds();
       bounds.extend(pickupLocation);
       bounds.extend(dropoffLocation);
-      mapInstance.fitBounds(bounds, {
-        padding: 100,
-        maxZoom: 15
-      });
+      mapInstance.fitBounds(bounds, { padding: 100, maxZoom: 15 });
 
-      // Fetch and display route
-      fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${pickupLocation[0]},${pickupLocation[1]};${dropoffLocation[0]},${dropoffLocation[1]}?geometries=geojson&access_token=${mapboxToken}`)
+      // Fetch route
+      fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${pickupLocation[0]},${pickupLocation[1]};` +
+        `${dropoffLocation[0]},${dropoffLocation[1]}?geometries=geojson&access_token=${mapboxToken}`
+      )
         .then(res => res.json())
         .then(data => {
-          const route = data.routes[0]?.geometry;
-          if (!route) return;
+          const coords = data.routes?.[0]?.geometry;
+          if (!coords) return;
 
           const routeGeoJSON: GeoJSON.Feature<GeoJSON.Geometry> = {
-            type: "Feature",
+            type: 'Feature',
             properties: {},
-            geometry: route,
+            geometry: coords,
           };
 
-          if (mapInstance.getSource('route')) {
-            (mapInstance.getSource('route') as mapboxgl.GeoJSONSource).setData(routeGeoJSON);
-          } else {
-            mapInstance.addSource('route', {
-              type: 'geojson',
-              data: routeGeoJSON,
-            });
+          // Add source
+          mapInstance.addSource('route', { type: 'geojson', data: routeGeoJSON });
 
-            mapInstance.addLayer({
-              id: 'route',
-              type: 'line',
-              source: 'route',
-              layout: {
-                'line-join': 'round',
-                'line-cap': 'round',
-              },
-              paint: {
-                'line-color': '#fbb03b',
-                'line-width': 5,
-              },
-            });
-          }
+          // White halo
+          mapInstance.addLayer({
+            id: 'route-halo',
+            type: 'line',
+            source: 'route',
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': '#ffffff', 'line-width': 8 }
+          });
+
+          // Black core
+          mapInstance.addLayer({
+            id: 'route-line',
+            type: 'line',
+            source: 'route',
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': '#000000', 'line-width': 4 }
+          });
+
+          // Start marker
+          new mapboxgl.Marker({ color: '#000000' })
+            .setLngLat(pickupLocation)
+            .setPopup(new mapboxgl.Popup({ offset: 25 }).setText('Start'))
+            .addTo(mapInstance);
+
+          // End marker
+          new mapboxgl.Marker({ color: '#000000' })
+            .setLngLat(dropoffLocation)
+            .setPopup(new mapboxgl.Popup({ offset: 25 }).setText('End'))
+            .addTo(mapInstance);
         })
-        .catch(err => {
-          console.error("Route fetch error:", err);
-        });
+        .catch(err => console.error('Route fetch error:', err));
     }
-
   }, [pickupLocation, dropoffLocation, mapLoaded]);
 
   return (
@@ -173,21 +161,21 @@ const Map = ({ pickupLocation, dropoffLocation, className = '' }: MapProps) => {
       {!mapboxToken && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-background z-10 p-4">
           <p className="mb-4 text-center">Please enter your Mapbox public token to use the map</p>
-          <input 
-            type="text" 
-            className="uber-input w-full max-w-sm mb-2" 
+          <input
+            type="text"
+            className="uber-input w-full max-w-sm mb-2"
             placeholder="Enter your Mapbox public token (starts with pk.)"
-            onChange={(e) => setMapboxToken(e.target.value)}
+            onChange={e => setMapboxToken(e.target.value)}
           />
           <p className="text-xs text-muted-foreground text-center">
             You can get a token at <a href="https://mapbox.com" className="text-primary underline" target="_blank" rel="noopener noreferrer">mapbox.com</a>
           </p>
-          {tokenError && (
-            <p className="text-red-500 mt-2 text-sm">{tokenError}</p>
-          )}
+          {tokenError && <p className="text-red-500 mt-2 text-sm">{tokenError}</p>}
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full rounded-lg overflow-hidden ${className}" />
+
+      <div ref={mapContainer} className={`w-full h-full rounded-lg overflow-hidden ${className}`} />
+
       {(!mapboxToken || !mapLoaded) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-0">
           <div className="text-4xl font-bold mb-4">Uber</div>

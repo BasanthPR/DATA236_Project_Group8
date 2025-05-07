@@ -4,11 +4,6 @@ import {
   comparePasswords,
   signToken
 } from '../../shared/auth/index.js';
-// import {
-//   hashPassword,
-//   comparePasswords,
-//   signToken
-// } from '../../shared/auth/index.js'; --> use this path later
 import redisClient from '../../shared/redis/redisClient.js';
 
 
@@ -59,41 +54,6 @@ const signup = async (req, res) => {
     res.status(500).json({ message: 'Signup failed', error: err.message });
   }
 };
-
-// Login
-// const login = async (req, res) => {
-//   const { email, password } = req.body;
-//   try {
-//     const user = await User.findOne({ email });
-//     if (!user)
-//       return res.status(404).json({ message: 'User not found' });
-
-//     const isMatch = await comparePasswords(password, user.password);
-//     if (!isMatch)
-//       return res.status(400).json({ message: 'Invalid credentials' });
-
-//     const token = signToken(
-//       { id: user._id, role: user.role },
-//       process.env.JWT_EXPIRES_IN || '1d'
-//     );
-
-//     res.status(200).json({
-//       user: {
-//         id: user._id,
-//         firstName: user.firstName,
-//         lastName: user.lastName,
-//         email: user.email,
-//         role: user.role
-//       },
-//       token
-//     });
-//   } catch (err) {
-//     console.error('❌ Login error:', err.message);
-//     res.status(500).json({ message: 'Login failed', error: err.message });
-//   }
-// };
-// controllers/authController.js
-
 
 const login = async (req, res) => {
   const { email, password } = req.body;
