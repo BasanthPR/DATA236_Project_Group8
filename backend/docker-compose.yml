@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   zookeeper:
     image: bitnami/zookeeper:3.9
     container_name: zookeeper-custom
     ports:
-      - "32181:2181"  # Host:Container
+      - "32181:2181"
     environment:
       ALLOW_ANONYMOUS_LOGIN: yes
 
@@ -13,7 +11,7 @@ services:
     image: bitnami/kafka:3.6
     container_name: kafka-custom
     ports:
-      - "29092:29092"  # Host:Container
+      - "29092:29092"
     depends_on:
       - zookeeper
     environment:
@@ -23,3 +21,9 @@ services:
       KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       ALLOW_PLAINTEXT_LISTENER: yes
+
+  redis:
+    image: redis:alpine
+    container_name: redis-custom
+    ports:
+      - "6379:6379"

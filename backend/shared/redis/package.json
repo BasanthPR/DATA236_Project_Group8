@@ -1,8 +1,7 @@
 {
-  "type": "module",
-  "name": "driver-service",
+  "name": "redis",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "redisClient.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,9 +10,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "express": "^5.1.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.10"
+    "redis": "^5.0.0"
   }
 }

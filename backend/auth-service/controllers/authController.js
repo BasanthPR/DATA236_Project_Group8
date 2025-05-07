@@ -4,6 +4,13 @@ import {
   comparePasswords,
   signToken
 } from '../../shared/auth/index.js';
+// import {
+//   hashPassword,
+//   comparePasswords,
+//   signToken
+// } from '../../shared/auth/index.js'; --> use this path later
+import redisClient from '../../shared/redis/redisClient.js';
+
 
 // Allowed roles that can sign up through public API
 const ALLOWED_SIGNUP_ROLES = ['customer', 'driver'];
@@ -54,38 +61,100 @@ const signup = async (req, res) => {
 };
 
 // Login
+// const login = async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user)
+//       return res.status(404).json({ message: 'User not found' });
+
+//     const isMatch = await comparePasswords(password, user.password);
+//     if (!isMatch)
+//       return res.status(400).json({ message: 'Invalid credentials' });
+
+//     const token = signToken(
+//       { id: user._id, role: user.role },
+//       process.env.JWT_EXPIRES_IN || '1d'
+//     );
+
+//     res.status(200).json({
+//       user: {
+//         id: user._id,
+//         firstName: user.firstName,
+//         lastName: user.lastName,
+//         email: user.email,
+//         role: user.role
+//       },
+//       token
+//     });
+//   } catch (err) {
+//     console.error('❌ Login error:', err.message);
+//     res.status(500).json({ message: 'Login failed', error: err.message });
+//   }
+// };
+// controllers/authController.js
+
+
 const login = async (req, res) => {
   const { email, password } = req.body;
+  let fromCache = false;
+  let safeUser;
 
-  try {
-    const user = await User.findOne({ email });
-    if (!user)
+  // 1) Try Redis
+  const cached = await redisClient.get(`user:${email}`);
+  if (cached) {
+    safeUser = JSON.parse(cached);
+    fromCache = true;
+    console.log(`✅ Cache hit for ${email}`);
+  } else {
+    // 2) Fallback to DB
+    console.log(`❌ Cache miss for ${email}, querying database...`);
+    const userDoc = await User.findOne({ email });
+    if (!userDoc) {
+      console.log(`❌ User not found in database for ${email}`);
       return res.status(404).json({ message: 'User not found' });
-
-    const isMatch = await comparePasswords(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: 'Invalid credentials' });
-
-    const token = signToken(
-      { id: user._id, role: user.role },
-      process.env.JWT_EXPIRES_IN || '1d'
-    );
-
-    res.status(200).json({
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role
-      },
-      token
-    });
-  } catch (err) {
-    console.error('❌ Login error:', err.message);
-    res.status(500).json({ message: 'Login failed', error: err.message });
+    }
+    // strip password
+    const { password: pw, ...rest } = userDoc.toObject();
+    safeUser = rest;
+    console.log(`✅ User found in database for ${email}, caching result...`);
+    await redisClient.setEx(`user:${email}`, 3600, JSON.stringify(rest));
   }
+
+  // 3) Always fetch hashed password from DB to compare
+  console.log(`🔒 Fetching hashed password from database for ${email} to compare...`);
+  const userRecord = await User.findOne({ email });
+  const isMatch = await comparePasswords(password, userRecord.password);
+  if (!isMatch) {
+    console.log(`❌ Invalid credentials for ${email}`);
+    return res.status(400).json({ message: 'Invalid credentials' });
+  }
+
+  // 4) Issue JWT
+  console.log(`✅ Credentials valid for ${email}, issuing JWT...`);
+  const token = signToken(
+    { id: userRecord._id, role: userRecord.role },
+    process.env.JWT_EXPIRES_IN || '1d'
+  );
+
+  // 5) Optional header
+  res.setHeader('X-Data-Source', fromCache ? 'cache' : 'db');
+  console.log(`📤 Response for ${email} will include data source: ${fromCache ? 'cache' : 'db'}`);
+
+  // 6) The exact JSON shape you asked for:
+  return res.status(200).json({
+    user: {
+      id: userRecord._id,
+      firstName: userRecord.firstName,
+      lastName: userRecord.lastName,
+      email: userRecord.email,
+      role: userRecord.role
+    },
+    token,
+    source: fromCache ? 'cache' : 'db' // drop this line if you don’t need it
+  });
 };
+
 
 // Get Profile
 const getProfile = async (req, res) => {
