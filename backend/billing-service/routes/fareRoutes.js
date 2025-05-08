@@ -1,8 +1,8 @@
-import express from 'express';
-import { predictFare } from '../controllers/predictFareController.js';
+// import express from 'express';
+// import { predictFare } from '../controllers/predictFareController.js';
 
-const router = express.Router();
+// const router = express.Router();
 
-router.post('/predict', predictFare);
+// router.post('/predict', predictFare);
 
-export default router;
+// export default router;
