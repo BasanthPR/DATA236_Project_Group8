@@ -212,3 +212,68 @@ export const updateDriverMedia = async (req, res) => {
     });
   }
 };
+export const updateDriverProfile = async (req, res) => {
+  const userEmail = req.user.email;
+  const files     = req.files || {};
+  const body      = req.body || {};
+
+  // Build the update object dynamically
+  const update = {};
+
+  // 1) Profile fields
+  ["phoneNumber","address","city","state","zipCode"].forEach((f) => {
+    if (body[f] != null) update[f] = body[f];
+  });
+
+  // 2) Car details
+  if (body["carDetails.make"] ||
+      body["carDetails.model"] ||
+      body["carDetails.year"] ||
+      body["carDetails.plateNumber"]) {
+    update.carDetails = {
+      make:        body["carDetails.make"]        || undefined,
+      model:       body["carDetails.model"]       || undefined,
+      year:  Number(body["carDetails.year"])      || undefined,
+      plateNumber: body["carDetails.plateNumber"] || undefined,
+    };
+  }
+
+  // 3) Location (if provided)
+  if (body.latitude && body.longitude) {
+    update.location = {
+      type: "Point",
+      coordinates: [Number(body.longitude), Number(body.latitude)],
+    };
+  }
+
+  // 4) Media
+  if (files.image?.length) {
+    update.imageUrl = files.image[0].path;
+  }
+  if (files.video?.length) {
+    update.videoUrl = files.video[0].path;
+  }
+
+  try {
+    const driver = await Driver.findOneAndUpdate(
+      { email: userEmail },
+      { $set: update },
+      { new: true }
+    ).select("-__v");
+
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: { driver },
+    });
+  } catch (err) {
+    console.error("❌ Update driver profile error:", err);
+    res.status(500).json({
+      message: "Failed to update driver profile",
+      error: err.message,
+    });
+  }
+};

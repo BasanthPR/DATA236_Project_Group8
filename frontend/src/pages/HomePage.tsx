@@ -1,3 +1,4 @@
+// src/pages/HomePage.tsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown, Calendar, Clock } from "lucide-react";
@@ -6,33 +7,43 @@ import MainNavbar from "@/components/MainNavbar";
 import Map from "@/components/Map";
 import axios from "axios";
 
+interface MapboxFeature {
+  id: string;
+  place_name: string;
+  center: [number, number];
+}
+
 const HomePage = () => {
   const [pickup, setPickup] = useState("");
   const [dropoff, setDropoff] = useState("");
   const [pickupLocation, setPickupLocation] = useState<[number, number]>();
   const [dropoffLocation, setDropoffLocation] = useState<[number, number]>();
   const [mapboxToken, setMapboxToken] = useState("");
-  const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);
-  const [dropoffSuggestions, setDropoffSuggestions] = useState<any[]>([]);
-  // Track which field is active for showing suggestions
-  const [activeField, setActiveField] = useState<'pickup'|'dropoff'|null>(null);
+  const [pickupSuggestions, setPickupSuggestions] = useState<MapboxFeature[]>([]);
+  const [dropoffSuggestions, setDropoffSuggestions] = useState<MapboxFeature[]>([]);
+  const [activeField, setActiveField] = useState<"pickup" | "dropoff" | null>(null);
   const navigate = useNavigate();
 
+  // Fetch Mapbox token once on mount
   useEffect(() => {
     const fetchToken = async () => {
       try {
         const res = await fetch("http://localhost:4001/api/mapbox-token");
         const data = await res.json();
         setMapboxToken(data.token);
-      } catch (error) {
-        console.error("Failed to fetch Mapbox token", error);
+      } catch (err) {
+        console.error("Failed to fetch Mapbox token", err);
       }
     };
     fetchToken();
   }, []);
 
+  // Fetch pickup suggestions
   useEffect(() => {
-    if (!mapboxToken || pickup.length < 3) return setPickupSuggestions([]);
+    if (!mapboxToken || pickup.length < 3) {
+      setPickupSuggestions([]);
+      return;
+    }
     const controller = new AbortController();
     fetch(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
@@ -48,8 +59,12 @@ const HomePage = () => {
     return () => controller.abort();
   }, [pickup, mapboxToken]);
 
+  // Fetch dropoff suggestions
   useEffect(() => {
-    if (!mapboxToken || dropoff.length < 3) return setDropoffSuggestions([]);
+    if (!mapboxToken || dropoff.length < 3) {
+      setDropoffSuggestions([]);
+      return;
+    }
     const controller = new AbortController();
     fetch(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
@@ -66,14 +81,19 @@ const HomePage = () => {
   }, [dropoff, mapboxToken]);
 
   const handleSeePrices = async () => {
-    navigate("/login");
     if (!pickup || !dropoff || !pickupLocation || !dropoffLocation) {
       alert("Please enter both pickup and dropoff locations.");
       return;
     }
 
+    // Redirect to login if not authenticated
+    if (!localStorage.getItem("token")) {
+      navigate("/login");
+      return;
+    }
+
     try {
-      const res = await axios.post("http://localhost:3000/api/rides", {
+      const res = await axios.post("http://localhost:4001/api/rides", {
         pickup,
         dropoff,
         pickupCoords: pickupLocation,
@@ -101,7 +121,9 @@ const HomePage = () => {
             {/* Left: Form */}
             <div>
               <h1 className="text-5xl font-bold mb-8">
-                Go anywhere with<br />Uber
+                Go anywhere with
+                <br />
+                Uber
               </h1>
 
               <div className="space-y-2 max-w-xl">
@@ -114,10 +136,10 @@ const HomePage = () => {
                     className="w-full px-4 py-3 pl-8 border border-gray-300 rounded-md"
                     value={pickup}
                     onChange={(e) => setPickup(e.target.value)}
-                    onFocus={() => setActiveField('pickup')}
+                    onFocus={() => setActiveField("pickup")}
                     onBlur={() => setTimeout(() => setActiveField(null), 200)}
                   />
-                  {activeField === 'pickup' && pickupSuggestions.length > 0 && (
+                  {activeField === "pickup" && pickupSuggestions.length > 0 && (
                     <ul className="absolute z-50 top-full left-0 right-0 bg-white border rounded-md shadow mt-1 max-h-60 overflow-y-auto">
                       {pickupSuggestions.map((place) => (
                         <li
@@ -146,10 +168,10 @@ const HomePage = () => {
                     className="w-full px-4 py-3 pl-8 border border-gray-300 rounded-md"
                     value={dropoff}
                     onChange={(e) => setDropoff(e.target.value)}
-                    onFocus={() => setActiveField('dropoff')}
+                    onFocus={() => setActiveField("dropoff")}
                     onBlur={() => setTimeout(() => setActiveField(null), 200)}
                   />
-                  {activeField === 'dropoff' && dropoffSuggestions.length > 0 && (
+                  {activeField === "dropoff" && dropoffSuggestions.length > 0 && (
                     <ul className="absolute z-50 top-full left-0 right-0 bg-white border rounded-md shadow mt-1 max-h-60 overflow-y-auto">
                       {dropoffSuggestions.map((place) => (
                         <li
@@ -200,11 +222,7 @@ const HomePage = () => {
 
             {/* Right: Map Display */}
             <div className="w-full h-[400px]">
-              <Map
-                pickupLocation={pickupLocation}
-                dropoffLocation={dropoffLocation}
-                className="h-full"
-              />
+              <Map pickupLocation={pickupLocation} dropoffLocation={dropoffLocation} className="h-full" />
             </div>
           </div>
         </section>
@@ -214,16 +232,36 @@ const HomePage = () => {
           <h2 className="text-3xl font-bold mb-8">Suggestions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { id: "courier", title: "Courier", description: "Uber makes same-day item delivery easier than ever.", link: "/deliver" },
-              { id: "grocery", title: "Grocery", description: "Get groceries delivered to your door with Uber Eats.", link: "https://www.ubereats.com/" },
-              { id: "hourly", title: "Hourly", description: "Request a trip for a block of time and make multiple stops.", link: "/ride" }
+              {
+                id: "courier",
+                title: "Courier",
+                description: "Uber makes same-day item delivery easier than ever.",
+                link: "/deliver"
+              },
+              {
+                id: "grocery",
+                title: "Grocery",
+                description: "Get groceries delivered to your door with Uber Eats.",
+                link: "https://www.ubereats.com/"
+              },
+              {
+                id: "hourly",
+                title: "Hourly",
+                description: "Request a trip for a block of time and make multiple stops.",
+                link: "/ride"
+              }
             ].map((suggestion) => (
               <div key={suggestion.id} className="bg-gray-100 p-6 rounded-lg">
                 <h3 className="text-xl font-bold mb-2">{suggestion.title}</h3>
                 <p className="text-gray-700 mb-6">{suggestion.description}</p>
                 <div className="flex justify-between items-end">
                   {suggestion.id === "grocery" ? (
-                    <a href={suggestion.link} target="_blank" rel="noopener noreferrer" className="text-black font-medium hover:underline">
+                    <a
+                      href={suggestion.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-black font-medium hover:underline"
+                    >
                       Details
                     </a>
                   ) : (

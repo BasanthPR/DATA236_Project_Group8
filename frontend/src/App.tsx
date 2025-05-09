@@ -16,6 +16,8 @@ import ActivityPage from "./pages/ActivityPage";
 import NotFound from "./pages/NotFound";
 import DriverSignupPage from "./pages/DriverSignupPage";
 import DriverLoginPage from "./pages/DriverLoginPage";
+import DriverProfilePage from "./pages/driverProfile";
+import DriverDashboardPage  from "./pages/DriverDashboard";
 // import BillingPage from "./pages/BillingPage";
 
 const queryClient = new QueryClient();
@@ -38,6 +40,10 @@ const App = () => (
             <Route path="/activity" element={<ActivityPage />} />
             <Route path="/driver/signup" element={<DriverSignupPage />} />
             <Route path="/driver/login" element={<DriverLoginPage />} />
+            <Route path="/driver/profile" element={<DriverProfilePage />} />
+            <Route path="/driver/dashboard" element={<DriverDashboardPage />} />
+            
+            {/* Uncomment the following line when the BillingPage is ready */}
             {/* <Route path="/billing" element={<BillingPage />} /> */}
             <Route path="*" element={<NotFound />} />
           </Routes>

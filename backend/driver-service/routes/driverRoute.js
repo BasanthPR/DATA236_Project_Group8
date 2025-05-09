@@ -7,9 +7,11 @@ import {
   getDriverProfile,
   getNearbyDrivers,
   updateDriverLocation,
-  updateDriverMedia      // ← import the new handler
+  updateDriverMedia,
+  updateDriverProfile      // ← import the new handler
 } from "../controllers/driverController.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+
 
 const router = express.Router();
 const upload = multer({ storage });
@@ -18,14 +20,19 @@ const upload = multer({ storage });
 router.use(authenticateToken);
 
 // Create profile (with optional image+video upload)
-router.post(
-  '/profile',
-  upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'video', maxCount: 1 }
-  ]),
-  createDriver
-);
+router
+  .route("/drivers/profile")
+  .post(authenticateToken, createDriver)
+  .get(authenticateToken, getDriverProfile)
+  .patch(
+    authenticateToken,
+    upload.fields([
+      { name: "image", maxCount: 1 },
+      { name: "video", maxCount: 1 },
+    ]),
+    updateDriverProfile         // <- unified update handler
+  );
+
 
 // Get own profile
 router.get('/profile', getDriverProfile);

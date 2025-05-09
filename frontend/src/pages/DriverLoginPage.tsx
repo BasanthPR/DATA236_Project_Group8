@@ -1,7 +1,7 @@
-
+// src/pages/DriverLoginPage.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
@@ -18,63 +18,59 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 const formSchema = z.object({
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  password: z.string().min(1, {
-    message: "Please enter your password.",
-  }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  password: z.string().min(1, { message: "Please enter your password." }),
 });
 
-const DriverLoginPage = () => {
+type FormValues = z.infer<typeof formSchema>;
+
+export default function DriverLoginPage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (values: FormValues) => {
     setIsLoading(true);
 
     try {
-      // In a real app, this would validate against an API
-      console.log("Login attempt:", values);
+      const res = await fetch("http://localhost:4001/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // For demo purposes, we'll just check if the driver data exists
-      const driverData = localStorage.getItem('driverData');
-      if (!driverData) {
-        throw new Error("No driver account found. Please sign up first.");
+      if (!res.ok) {
+        const payload = await res.json();
+        throw new Error(payload.message || "Login failed");
       }
 
-      const driver = JSON.parse(driverData);
-      if (driver.email !== values.email) {
-        throw new Error("Invalid email or password.");
-      }
+      const { user, token } = await res.json();
 
-      // In a real app, we would validate the password with bcrypt
-      // Here we're just checking if the email matches for demo purposes
-      
-      localStorage.setItem('driverLoggedIn', 'true');
-      
+      // Persist auth state
+      localStorage.setItem("token", token);
+      localStorage.setItem("driverLoggedIn", "true");
+      localStorage.setItem("driverData", JSON.stringify(user));
+
       toast({
         title: "Welcome back!",
-        description: `You have successfully logged in as ${driver.firstName}.`,
+        description: `You have successfully logged in as ${user.firstName}.`,
       });
-      
-      navigate('/driver/dashboard');
-    } catch (error) {
-      console.error("Login error:", error);
+
+      // Redirect to profile page instead of dashboard
+      navigate("/driver/profile");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred. Please try again.";
+      console.error("Login error:", err);
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "Invalid email or password.",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -86,7 +82,11 @@ const DriverLoginPage = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="fixed top-0 left-0 right-0 p-4 bg-background z-10 border-b">
         <div className="flex items-center">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="p-2"
+          >
             <ArrowLeft className="h-6 w-6" />
           </Button>
           <h1 className="text-xl font-bold ml-2">Driver Login</h1>
@@ -96,11 +96,16 @@ const DriverLoginPage = () => {
       <div className="flex-1 container max-w-md mx-auto pt-20 pb-10 px-4 flex flex-col justify-center">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">Welcome back</h1>
-          <p className="text-muted-foreground">Log in to continue driving with Uber</p>
+          <p className="text-muted-foreground">
+            Log in to continue driving with Uber
+          </p>
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             <FormField
               control={form.control}
               name="email"
@@ -108,12 +113,16 @@ const DriverLoginPage = () => {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="email" 
-                      placeholder="your.email@example.com" 
-                      autoComplete="email"
-                      {...field} 
-                    />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        type="email"
+                        placeholder="your.email@example.com"
+                        autoComplete="email"
+                        className="pl-10"
+                        {...field}
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -127,12 +136,16 @@ const DriverLoginPage = () => {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="password" 
-                      placeholder="••••••••" 
-                      autoComplete="current-password"
-                      {...field} 
-                    />
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        className="pl-10"
+                        {...field}
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -140,10 +153,10 @@ const DriverLoginPage = () => {
             />
 
             <div>
-              <Button 
-                variant="link" 
-                type="button" 
-                onClick={() => navigate('/driver/forgot-password')}
+              <Button
+                variant="link"
+                type="button"
+                onClick={() => navigate("/driver/forgot-password")}
                 className="p-0 text-sm"
               >
                 Forgot password?
@@ -163,7 +176,7 @@ const DriverLoginPage = () => {
               <Button
                 variant="link"
                 type="button"
-                onClick={() => navigate('/driver/signup')}
+                onClick={() => navigate("/driver/signup")}
                 className="p-0"
               >
                 Sign up
@@ -174,6 +187,4 @@ const DriverLoginPage = () => {
       </div>
     </div>
   );
-};
-
-export default DriverLoginPage;
+}
