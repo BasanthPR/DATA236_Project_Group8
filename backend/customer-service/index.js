@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
 });
 
 // Server & DB config
-const PORT = process.env.PORT || 4005;
+const PORT = process.env.PORT || 4006;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/customer-service';
 
 mongoose.connect(MONGO_URI, {

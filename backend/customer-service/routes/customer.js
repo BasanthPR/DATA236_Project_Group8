@@ -1,4 +1,4 @@
-// routes/customerRoutes.js
+// routes/customer.js
 import express from 'express';
 import {
   createCustomer,
