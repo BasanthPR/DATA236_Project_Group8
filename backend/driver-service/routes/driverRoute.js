@@ -1,48 +1,49 @@
 // routes/driverRoute.js
 import express from "express";
+import multer from 'multer';
+import { storage } from '../../shared/cloudinary/cloudinary.js';
 import { 
-  createDriver, 
-  getDriver, 
-  updateDriver, 
-  deleteDriver, 
-  searchDrivers, 
-  updateDriverLocation, 
-  signup, 
-  login, 
-  getProfile, 
-  updateProfile, 
-  updateLocation 
+  createDriver,
+  getDriverProfile,
+  getNearbyDrivers,
+  updateDriverLocation,
+  updateDriverMedia      // ← import the new handler
 } from "../controllers/driverController.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+const upload = multer({ storage });
 
-// Public routes
-router.post("/signup", signup);
-router.post("/login", login);
-
-// Protected routes
+// Apply authentication to all routes
 router.use(authenticateToken);
-router.get("/profile", getProfile);
-router.patch("/profile", updateProfile);
-router.patch("/location", updateLocation);
 
-// 1. POST    /api/drivers
-router.post("/", createDriver);
+// Create profile (with optional image+video upload)
+router.post(
+  '/profile',
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'video', maxCount: 1 }
+  ]),
+  createDriver
+);
 
-// 5. GET     /api/drivers
-router.get("/", searchDrivers);
+// Get own profile
+router.get('/profile', getDriverProfile);
 
-// 2. GET     /api/drivers/:driverId
-router.get("/:driverId", getDriver);
+// Update only image/video after profile exists
+router.patch(
+  '/media',
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'video', maxCount: 1 }
+  ]),
+  updateDriverMedia
+);
 
-// 3. PATCH   /api/drivers/:driverId
-router.patch("/:driverId", updateDriver);
+// Get nearby drivers
+router.get('/nearby', getNearbyDrivers);
 
-// 6. PATCH   /api/drivers/:driverId/location
-router.patch("/:driverId/location", updateDriverLocation);
-
-// 4. DELETE  /api/drivers/:driverId
-router.delete("/:driverId", deleteDriver);
+// Update geo-location
+router.patch('/location', updateDriverLocation);
 
 export default router;

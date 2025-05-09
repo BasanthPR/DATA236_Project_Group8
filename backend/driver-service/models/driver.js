@@ -26,14 +26,14 @@ const driverSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
     lowercase: true,
     trim: true
   },
   password: {
     type: String,
-    required: true
+    required: false
   },
   phoneNumber: {
     type: String,
@@ -69,7 +69,15 @@ const driverSchema = new mongoose.Schema({
       type: [Number],
       default: [0, 0]
     }
-  }
+  },
+  imageUrl: {
+      type: String,
+      default: ''    // will hold your Cloudinary image URL
+    },
+    videoUrl: {
+      type: String,
+      default: ''    // will hold your Cloudinary video URL
+    }
 }, { timestamps: true });
 
 export default mongoose.model('Driver', driverSchema);

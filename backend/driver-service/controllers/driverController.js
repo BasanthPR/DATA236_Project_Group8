@@ -1,255 +1,214 @@
 // controllers/driverController.js
 import Driver from "../models/driver.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { Types } from "mongoose";
 
-// Auth Controllers
-export const signup = async (req, res) => {
+// Create driver details from logged in user
+export const createDriver = async (req, res) => {
+  const userEmail = req.user.email;
+  const { 
+    driverId,
+    licenseNumber, 
+    firstName, 
+    lastName,
+    phoneNumber,
+    address,
+    city,
+    state,
+    zipCode,
+    carDetails,
+    location 
+  } = req.body;
+
   try {
-    const { email, password } = req.body;
-    
-    // Check existing driver
-    const existingDriver = await Driver.findOne({ email });
-    if (existingDriver) {
-      return res.status(400).json({ message: "Email already registered" });
+    // Prevent duplicate profile
+    if (await Driver.findOne({ email: userEmail })) {
+      return res.status(400).json({ message: 'Driver profile already exists' });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create driver
-    const driver = await Driver.create({
-      ...req.body,
-      password: hashedPassword
+    const driver = new Driver({
+      email: userEmail,
+      driverId,
+      licenseNumber,
+      firstName,
+      lastName,
+      phoneNumber,
+      address,
+      city,
+      state,
+      zipCode,
+      carDetails,
+      location: {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude]
+      },
+      // imageUrl & videoUrl default to '' per schema
+      isAvailable: false,
+      rating: 0,
+      ridesCompleted: 0,
+      reviews: []
     });
 
-    // Generate token
-    const token = jwt.sign(
-      { id: driver._id, email: driver.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.status(201).json({
+    await driver.save();
+    return res.status(201).json({
       status: 'success',
-      token,
-      data: {
-        driver: {
-          id: driver._id,
-          firstName: driver.firstName,
-          lastName: driver.lastName,
-          email: driver.email
+      data: { driver }
+    });
+
+  } catch (err) {
+    console.error('❌ Create driver error:', err.message);
+    return res.status(500).json({ 
+      message: 'Failed to create driver profile', 
+      error: err.message 
+    });
+  }
+};
+
+// Get driver profile
+export const getDriverProfile = async (req, res) => {
+  const userEmail = req.user.email;
+
+  try {
+    const driver = await Driver.findOne({ email: userEmail })
+      .select('-__v');
+
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: { driver }
+    });
+
+  } catch (err) {
+    console.error('❌ Get driver error:', err.message);
+    return res.status(500).json({ 
+      message: 'Failed to fetch driver profile', 
+      error: err.message 
+    });
+  }
+};
+
+// Get nearby drivers
+export const getNearbyDrivers = async (req, res) => {
+  const { latitude, longitude, radius = 5000 } = req.query; // meters
+
+  try {
+    const nearbyDrivers = await Driver.find({
+      isAvailable: true,
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [
+              parseFloat(longitude),
+              parseFloat(latitude)
+            ]
+          },
+          $maxDistance: parseInt(radius)
         }
       }
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+    })
+    .select('firstName lastName carDetails location rating imageUrl videoUrl');
 
-export const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Check driver exists
-    const driver = await Driver.findOne({ email });
-    if (!driver) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, driver.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // Generate token
-    const token = jwt.sign(
-      { id: driver._id, email: driver.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
-      token,
-      data: {
-        driver: {
-          id: driver._id,
-          firstName: driver.firstName,
-          lastName: driver.lastName,
-          email: driver.email
-        }
-      }
+      results: nearbyDrivers.length,
+      data: { drivers: nearbyDrivers }
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
-// CRUD Controllers
-export const getProfile = async (req, res) => {
-  try {
-    const driver = await Driver.findById(req.user.id).select('-password');
-    if (!driver) {
-      return res.status(404).json({ message: "Driver not found" });
-    }
-    res.status(200).json({ status: 'success', data: { driver } });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const updateProfile = async (req, res) => {
-  try {
-    const updatedDriver = await Driver.findByIdAndUpdate(
-      req.user.id,
-      { $set: req.body },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    res.status(200).json({
-      status: 'success',
-      data: { driver: updatedDriver }
+  } catch (err) {
+    console.error('❌ Get nearby drivers error:', err.message);
+    return res.status(500).json({ 
+      message: 'Failed to fetch nearby drivers', 
+      error: err.message 
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
   }
 };
 
-export const updateLocation = async (req, res) => {
+// Update driver location
+export const updateDriverLocation = async (req, res) => {
+  const userEmail = req.user.email;
+  const { latitude, longitude } = req.body;
+
   try {
-    const { latitude, longitude } = req.body;
-    
-    const updatedDriver = await Driver.findByIdAndUpdate(
-      req.user.id,
+    const driver = await Driver.findOneAndUpdate(
+      { email: userEmail },
       {
         location: {
-          type: "Point",
+          type: 'Point',
           coordinates: [longitude, latitude]
         }
       },
       { new: true }
-    ).select('location');
+    ).select('-__v');
 
-    res.status(200).json({
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    return res.status(200).json({
       status: 'success',
-      data: { location: updatedDriver.location }
+      data: { driver }
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
-// 1. Create Driver
-export const createDriver = async (req, res) => {
-  try {
-    const { password } = req.body;
-    if (!password) return res.status(400).json({ message: "Password is required" });
-    const salt = await bcrypt.genSalt(10);
-    req.body.password = await bcrypt.hash(password, salt);
-    const driver = await Driver.create(req.body);
-    return res.status(201).json({ message: "Driver created", id: driver._id });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error('❌ Update location error:', err.message);
+    return res.status(500).json({ 
+      message: 'Failed to update location', 
+      error: err.message 
+    });
   }
 };
 
-// 2. Get Driver by ID
-export const getDriver = async (req, res) => {
-  try {
-    const { driverId } = req.params;
-    const filter = Types.ObjectId.isValid(driverId)
-      ? { _id: driverId }
-      : { driverId };
-    const driver = await Driver.findOne(filter).select("-password").lean();
-    if (!driver) return res.status(404).json({ message: "Driver not found" });
-    return res.status(200).json(driver);
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
+/**
+ * PATCH /api/drivers/media
+ * Upload or replace the driver’s photo and/or video.
+ * Expects multipart/form-data with fields:
+ *    - image (single file)
+ *    - video (single file)
+ */
+export const updateDriverMedia = async (req, res) => {
+  const userEmail = req.user.email;
+  const files = req.files || {};
+  console.log('💡 [updateDriverMedia] userEmail:', userEmail);
+  console.log('💡 [updateDriverMedia] req.files:', req.files);
 
-// 3. Update Driver (Partial)
-export const updateDriver = async (req, res) => {
+  // Build dynamic update payload
+  const update = {};
+  if (files.image?.length) {
+    update.imageUrl = files.image[0].path;
+  }
+  if (files.video?.length) {
+    update.videoUrl = files.video[0].path;
+  }
+
+  if (!Object.keys(update).length) {
+    return res.status(400).json({
+      message: 'No image or video file provided'
+    });
+  }
+
   try {
-    const { driverId } = req.params;
-    const filter = Types.ObjectId.isValid(driverId)
-      ? { _id: driverId }
-      : { driverId };
-    if (req.body.password) {
-      const salt = await bcrypt.genSalt(10);
-      req.body.password = await bcrypt.hash(req.body.password, salt);
-    }
-    const updated = await Driver.findOneAndUpdate(
-      filter,
-      req.body,
+    const driver = await Driver.findOneAndUpdate(
+      { email: userEmail },
+      { $set: update },
       { new: true }
-    ).select("-password").lean();
-    if (!updated) return res.status(404).json({ message: "Driver not found" });
-    return res.status(200).json({ message: "Updated", driver: updated });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
+    ).select('-__v');
 
-// 4. Delete Driver
-export const deleteDriver = async (req, res) => {
-  try {
-    const { driverId } = req.params;
-    const filter = Types.ObjectId.isValid(driverId)
-      ? { _id: driverId }
-      : { driverId };
-    const driver = await Driver.findOne(filter);
-    if (!driver) return res.status(404).json({ message: "Driver not found" });
-    await driver.remove();
-    // 204: No Content
-    return res.status(204).end();
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
-
-// 5. List/Search Drivers
-export const searchDrivers = async (req, res) => {
-  try {
-    const { city, state, zipCode, car_make, car_model, min_rating } = req.query;
-    const filters = {};
-    if (city)    filters.city = { $regex: city, $options: "i" };
-    if (state)   filters.state = { $regex: state, $options: "i" };
-    if (zipCode) filters.zipCode = zipCode;
-    if (car_make)  filters["carDetails.make"] = { $regex: car_make, $options: "i" };
-    if (car_model) filters["carDetails.model"] = { $regex: car_model, $options: "i" };
-    if (min_rating) filters.rating = { $gte: Number(min_rating) };
-
-    const drivers = await Driver.find(filters).select("-password").lean();
-    return res.status(200).json({ results: drivers.length, drivers });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
-
-// 6. Update Driver Location
-export const updateDriverLocation = async (req, res) => {
-  try {
-    const { driverId } = req.params;
-    const { latitude, longitude } = req.body;
-    if (latitude == null || longitude == null) {
-      return res.status(400).json({ message: "latitude & longitude required" });
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
     }
-    const filter = Types.ObjectId.isValid(driverId)
-      ? { _id: driverId }
-      : { driverId };
-    const updated = await Driver.findOneAndUpdate(
-      filter,
-      { location: { latitude, longitude } },
-      { new: true }
-    ).select("location").lean();
-    if (!updated) return res.status(404).json({ message: "Driver not found" });
-    return res.status(200).json({ message: "Location updated", location: updated.location });
+
+    return res.status(200).json({
+      status: 'success',
+      data: { driver }
+    });
+
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error('❌ Update driver media error:', err);
+    return res.status(500).json({
+      message: 'Failed to update driver media',
+      error: err.message
+    });
   }
 };
