@@ -4,6 +4,7 @@ import {
   comparePasswords,
   signToken
 } from '../../shared/auth/index.js'; // ✅ All helpers from shared module
+import redisClient from '../../shared/redis/redisClient.js'; // Import Redis client
 
 // Admin Signup
 const signup = async (req, res) => {
@@ -56,31 +57,62 @@ const signup = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    let fromCache = false;
+    let safeUser;
 
-    const user = await User.findOne({ email });
-    if (!user || user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied: not an admin" });
+    // 1) Try Redis
+    const cached = await redisClient.get(`admin:${email}`);
+    if (cached) {
+      safeUser = JSON.parse(cached);
+      fromCache = true;
+      console.log(`✅ Cache hit for admin: ${email}`);
+    } else {
+      // 2) Fallback to DB
+      console.log(`❌ Cache miss for admin: ${email}, querying database...`);
+      const userDoc = await User.findOne({ email });
+      if (!userDoc || userDoc.role !== "admin") {
+        console.log(`❌ Admin not found in database for ${email}`);
+        return res.status(403).json({ message: "Access denied: not an admin" });
+      }
+
+      // Strip password before caching
+      const { password: pw, ...rest } = userDoc.toObject();
+      safeUser = rest;
+      console.log(`✅ Admin found in database for ${email}, caching result...`);
+      await redisClient.setEx(`admin:${email}`, 3600, JSON.stringify(rest)); // Cache for 1 hour
     }
 
-    const isMatch = await comparePasswords(password, user.password);
+    // 3) Always fetch hashed password from DB to compare
+    console.log(`🔒 Fetching hashed password from database for admin: ${email} to compare...`);
+    const userRecord = await User.findOne({ email });
+    const isMatch = await comparePasswords(password, userRecord.password);
     if (!isMatch) {
+      console.log(`❌ Invalid credentials for admin: ${email}`);
       return res.status(403).json({ message: "Invalid credentials" });
     }
 
+    // 4) Issue JWT
+    console.log(`✅ Credentials valid for admin: ${email}, issuing JWT...`);
     const token = signToken({
-      id: user._id,
-      role: user.role,
-      email: user.email
+      id: userRecord._id,
+      role: userRecord.role,
+      email: userRecord.email
     }, '1h');
 
+    // 5) Optional header
+    res.setHeader('X-Data-Source', fromCache ? 'cache' : 'db');
+    console.log(`📤 Response for admin: ${email} will include data source: ${fromCache ? 'cache' : 'db'}`);
+
+    // 6) Return response
     res.status(200).json({
       message: "Login successful",
       token,
       user: {
-        id: user._id,
-        email: user.email,
-        name: `${user.firstName} ${user.lastName}`
-      }
+        id: userRecord._id,
+        email: userRecord.email,
+        name: `${userRecord.firstName} ${userRecord.lastName}`
+      },
+      source: fromCache ? 'cache' : 'db' // Optional: Include source for debugging
     });
   } catch (err) {
     console.error("❌ Admin login error:", err.message);
