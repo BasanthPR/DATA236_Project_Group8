@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +12,7 @@ import SignupPage from "./pages/SignupPage";
 import RidePage from "./pages/RidePage";
 import ProfilePage from "./pages/ProfilePage";
 import ActivityPage from "./pages/ActivityPage";
+import ReviewsPage from "./pages/ReviewsPage"; // Add this import
 import NotFound from "./pages/NotFound";
 import DriverSignupPage from "./pages/DriverSignupPage";
 import DriverLoginPage from "./pages/DriverLoginPage";
@@ -37,6 +37,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/reviews" element={<ReviewsPage />} /> {/* Add this route */}
             <Route path="/activity" element={<ActivityPage />} />
             <Route path="/driver/signup" element={<DriverSignupPage />} />
             <Route path="/driver/login" element={<DriverLoginPage />} />
