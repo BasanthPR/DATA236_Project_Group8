@@ -4,7 +4,8 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import driverRoutes from './routes/driverRoute.js';
-import driverReviewRoutes from './routes/driverReviewRoute.js'
+import redisClient from '../shared/redis/redisClient.js';
+import { connectProducer } from './utils/kafkaClient.js';
 
 dotenv.config();
 
@@ -13,6 +14,11 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Log Redis connection status
+redisClient.on('connect', () => console.log('✅ Connected to Redis'));
+redisClient.on('error', err => console.error('❌ Redis Client Error', err));
+connectProducer().catch(err => console.error('❌ Kafka producer failed to connect', err));
 
 // Routes
 app.use('/api/drivers', driverRoutes);

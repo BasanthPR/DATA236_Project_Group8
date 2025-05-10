@@ -12,7 +12,8 @@ const driverSchema = new mongoose.Schema({
   driverId: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    match: [/^\d{3}-\d{2}-\d{4}$/, 'driverId must be SSN format (###-##-####)']
   },
   firstName: {
     type: String,
@@ -77,7 +78,22 @@ const driverSchema = new mongoose.Schema({
     videoUrl: {
       type: String,
       default: ''    // will hold your Cloudinary video URL
+    },
+      // ← Add these
+  isAvailable:    { type: Boolean, default: false },
+  ridesCompleted: { type: Number,  default: 0 },
+  rating:         { type: Number,  default: 0 },
+  reviews: [
+    {
+      reviewerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      rating:     { type: Number, min: 1, max: 5 },
+      comment:    String,
+      createdAt:  { type: Date, default: Date.now }
     }
+  ]
 }, { timestamps: true });
+
+//Enable geospatial queries on location
+driverSchema.index({ location: "2dsphere" });
 
 export default mongoose.model('Driver', driverSchema);

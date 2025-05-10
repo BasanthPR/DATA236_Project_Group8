@@ -1,4 +1,15 @@
-import {createClient} from 'redis';
-const client = createClient({url: process.env.REDIS_URL});
-await client.connect();
-export default client;
+// shared/redis/redisClient.js
+import { createClient } from 'redis';
+
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+
+redisClient.on('error', err => console.error('Redis Client Error', err));
+await redisClient.connect();
+
+redisClient.on('connect', () => console.log('✅ Redis connected'));
+redisClient.on('error', err => console.error('❌ Redis error', err));
+
+
+export default redisClient;
