@@ -1,53 +1,75 @@
 // routes/driverRoute.js
-import express from "express";
-import multer from 'multer';
-import { storage } from '../../shared/cloudinary/cloudinary.js';
-import { 
+import express from 'express'
+import multer from 'multer'
+import { storage } from '../../shared/cloudinary/cloudinary.js'
+import {
   createDriver,
   getDriverProfile,
   getNearbyDrivers,
   updateDriverLocation,
   updateDriverMedia,
-  updateDriverProfile      // ← import the new handler
-} from "../controllers/driverController.js";
-import { authenticateToken } from "../middleware/authMiddleware.js";
+  updateDriverProfile
+} from '../controllers/driverController.js'
+import {
+  addDriverReview,
+  getDriverReviews
+} from '../controllers/driverReview.js'
+import { authenticateToken } from '../middleware/authMiddleware.js'
 
+const router = express.Router()
+const upload = multer({ storage })
 
-const router = express.Router();
-const upload = multer({ storage });
+// All routes under here require a valid JWT
+router.use(authenticateToken)
 
-// Apply authentication to all routes
-router.use(authenticateToken);
-
-// Create profile (with optional image+video upload)
+/**
+ * Profile CRUD
+ */
 router
   .route('/profile')
-  .get(authenticateToken, getDriverProfile)
-  .post(authenticateToken, createDriver)                              // createDriver handles POST
+  .get(getDriverProfile)                                 // GET  /api/drivers/profile
+  .post(createDriver)                                    // POST /api/drivers/profile
   .patch(
-    authenticateToken,
-    upload.fields([{ name: 'image' }, { name: 'video' }]),  // multer to parse your FormData
-    updateDriverProfile
+    upload.fields([{ name: 'image' }, { name: 'video' }]),
+    updateDriverProfile                                  // PATCH /api/drivers/profile
   )
 
-
-// Get own profile
-router.get('/profile', getDriverProfile);
-
-// Update only image/video after profile exists
+/**
+ * Media only
+ */
 router.patch(
   '/media',
   upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'video', maxCount: 1 }
   ]),
-  updateDriverMedia
-);
+  updateDriverMedia                                      // PATCH /api/drivers/media
+)
 
-// Get nearby drivers
-router.get('/nearby', getNearbyDrivers);
+/**
+ * Location only
+ */
+router.patch(
+  '/location',
+  updateDriverLocation                                   // PATCH /api/drivers/location
+)
 
-// Update geo-location
-router.patch('/location', updateDriverLocation);
+/**
+ * Nearby lookup
+ */
+router.get(
+  '/nearby', 
+  getNearbyDrivers                                       // GET  /api/drivers/nearby
+)
 
-export default router;
+/**
+ * Driver → Customer Reviews
+ *  POST /api/drivers/reviews  → create/update a review this driver writes about a customer
+ *  GET  /api/drivers/reviews  → list all reviews this driver has submitted
+ */
+router
+  .route('/reviews')
+  .post(addDriverReview)
+  .get(getDriverReviews)
+
+export default router

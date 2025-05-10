@@ -1,6 +1,16 @@
 import axios from 'axios'
 import { DriverProfile } from '@/types/driver'
 
+// A single review entry that the driver has submitted about a customer
+export interface DriverReview {
+  _id:        string
+  customerId: string
+  rating:     number
+  comment:    string
+  createdAt:  string
+  updatedAt:  string
+}
+
 // Payload for creating a new driver
 export interface CreateDriverProfilePayload {
   driverId:      string
@@ -61,7 +71,7 @@ export const driverService = {
     return res.data.data.driver
   },
 
-  // NEW: upload just the image
+  // Upload only image/video
   async uploadMedia(formData: FormData): Promise<DriverProfile> {
     const res = await api.patch('/media', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -72,5 +82,13 @@ export const driverService = {
   async getProfile(): Promise<DriverProfile> {
     const res = await api.get('/profile')
     return res.data.data.driver
+  },
+
+  /**
+   * Fetch all reviews this driver has submitted about customers.
+   */
+  async getDriverReviews(): Promise<DriverReview[]> {
+    const res = await api.get<{ reviews: DriverReview[] }>('/reviews')
+    return res.data.reviews
   }
 }

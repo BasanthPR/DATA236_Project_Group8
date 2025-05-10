@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import driverRoutes from './routes/driverRoute.js';
+import driverReviewRoutes from './routes/driverReviewRoute.js'
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/drivers', driverRoutes);
+
 
 // Health check
 app.get('/health', (req, res) => {
