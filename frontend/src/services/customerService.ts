@@ -83,8 +83,8 @@
 import axios from 'axios';
 import { CustomerProfile } from '@/types/customer';
 
-// API base URL - use environment variable or default to localhost:4006
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4006';
+const CUSTOMER_PORT = import.meta.env.VITE_CUSTOMER_SERVICE_PORT;
+const API_URL = `http://localhost:${CUSTOMER_PORT}/api/customers`;
 
 // Log API URL for debugging
 console.log('Customer Service API URL:', API_URL);

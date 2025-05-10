@@ -1,259 +1,385 @@
 // src/pages/DriverProfilePage.tsx
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/use-toast";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 
-const profileSchema = z.object({
-  phoneNumber:  z.string().min(1, "Required"),
-  address:      z.string().min(1, "Required"),
-  city:         z.string().min(1, "Required"),
-  state:        z.string().min(1, "Required"),
-  zipCode:      z.string().min(1, "Required"),
-  carMake:      z.string().min(1, "Required"),
-  carModel:     z.string().min(1, "Required"),
-  carYear:      z.string().min(1, "Required"),
-  plateNumber:  z.string().min(1, "Required"),
-});
-
-type ProfileFormValues = z.infer<typeof profileSchema>;
+import React, { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronUp, Edit2, Camera, MapPin, User } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { toast } from '@/components/ui/use-toast'
+import DriverForm from '@/components/DriverForm'
+import { DriverProfile } from '@/types/driver'
+import { driverService, CreateDriverProfilePayload } from '@/services/driverService'
+import axios from 'axios'
 
 export default function DriverProfilePage() {
-  const navigate = useNavigate();
-  const [loading, setLoading]   = useState(true);
-  const [isUpdate, setIsUpdate] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [existingPhotoUrl, setExistingPhotoUrl] = useState("");
+  const nav = useNavigate()
 
-  const token      = localStorage.getItem("token") || "";
-  const driverData = JSON.parse(localStorage.getItem("driverData") || "{}");
-  const { firstName = "", lastName = "", email = "" } = driverData;
+  const storedUser = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('driverData') || '{}') }
+    catch { return {} }
+  }, [])
 
-  const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      phoneNumber:  "",
-      address:      "",
-      city:         "",
-      state:        "",
-      zipCode:      "",
-      carMake:      "",
-      carModel:     "",
-      carYear:      "",
-      plateNumber:  "",
-    },
-  });
+  const [profile, setProfile] = useState<DriverProfile>({
+    driverId:      storedUser.id       || '',
+    email:         storedUser.email    || '',
+    firstName:     storedUser.firstName|| '',
+    lastName:      storedUser.lastName || '',
+    licenseNumber: '',
+    phoneNumber:   '',
+    address:       '',
+    city:          '',
+    state:         '',
+    zipCode:       '',
+    carDetails:    { make:'',model:'',year:0,color:'',plateNumber:'',vehicleType:'' },
+    location:      undefined,
+    imageUrl:      undefined,
+    ridesHistory:  [],
+    reviews:       [],
+  })
 
-  // Load existing profile or enter create mode
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string|null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isNew, setIsNew]         = useState(false)
+  const [tab, setTab]             = useState<'details'|'activity'|'upload'>('details')
+  const [photoFile, setPhotoFile] = useState<File|null>(null)
+
   useEffect(() => {
-    if (!token) {
-      navigate("/driver/login");
-      return;
-    }
-
-    fetch("http://localhost:4004/api/drivers/profile", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (res) => {
-        if (res.status === 404) {
-          setIsUpdate(false);
-          return null;
+    async function load() {
+      setLoading(true)
+      try {
+        const data = await driverService.getProfile()
+        setProfile({
+          driverId:      data.driverId,
+          email:         data.email,
+          firstName:     data.firstName,
+          lastName:      data.lastName,
+          licenseNumber: data.licenseNumber,
+          phoneNumber:   data.phoneNumber,
+          address:       data.address,
+          city:          data.city,
+          state:         data.state,
+          zipCode:       data.zipCode,
+          carDetails:    data.carDetails,
+          location:      data.location,
+          imageUrl:      data.imageUrl,
+          ridesHistory:  data.ridesHistory ?? [],
+          reviews:       data.reviews      ?? [],
+        })
+        setIsNew(false)
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          setIsNew(true)
+        } else {
+          console.error('Load profile error:', err)
+          setError('Failed to load profile')
         }
-        if (!res.ok) throw new Error("Failed to load profile");
-        return res.json();
-      })
-      .then((data) => {
-        if (data) {
-          const cd = data.carDetails ?? {}; // default to empty object
-          form.reset({
-            phoneNumber: data.phoneNumber  || "",
-            address:     data.address      || "",
-            city:        data.city         || "",
-            state:       data.state        || "",
-            zipCode:     data.zipCode      || "",
-            carMake:     cd.make           || "",
-            carModel:    cd.model          || "",
-            carYear:     String(cd.year    ?? ""),
-            plateNumber: cd.plateNumber    || "",
-          });
-          if (data.imageUrl) setExistingPhotoUrl(data.imageUrl);
-          setIsUpdate(true);
-        }
-      })
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : "Could not load profile";
-        console.error("Load profile error:", err);
-        toast({ title: "Error", description: message, variant: "destructive" });
-      })
-      .finally(() => setLoading(false));
-  }, [token, navigate, form]);
-
-  // Submit create or update
-  const onSubmit = async (values: ProfileFormValues) => {
-    if (!photoFile && !existingPhotoUrl) {
-      toast({
-        title: "Photo required",
-        description: "Please upload a profile photo.",
-        variant: "destructive",
-      });
-      return;
+      } finally {
+        setLoading(false)
+      }
     }
+    load()
+  }, [storedUser])
 
-    setLoading(true);
-    const formData = new FormData();
-    formData.append("firstName", firstName);
-    formData.append("lastName",  lastName);
-    formData.append("email",     email);
-
-    formData.append("phoneNumber", values.phoneNumber);
-    formData.append("address",     values.address);
-    formData.append("city",        values.city);
-    formData.append("state",       values.state);
-    formData.append("zipCode",     values.zipCode);
-    formData.append("carDetails.make",       values.carMake);
-    formData.append("carDetails.model",      values.carModel);
-    formData.append("carDetails.year",       values.carYear);
-    formData.append("carDetails.plateNumber",values.plateNumber);
-
-    if (photoFile) formData.append("image", photoFile);
-
-    const url    = "http://localhost:4004/api/drivers/profile";
-    const method = isUpdate ? "PATCH" : "POST";
-
+  // Create / Update profile (JSON or multipart):
+  const handleSave = async (formData: FormData) => {
+    setLoading(true)
     try {
-      let res = await fetch(url, {
-        method,
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      let updated: DriverProfile
 
-      // fallback PATCH on 409
-      if (res.status === 409 && method === "POST") {
-        res = await fetch(url, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
+      if (isNew) {
+        const payload: CreateDriverProfilePayload = {
+          driverId:      formData.get('driverId')       as string,
+          firstName:     formData.get('firstName')      as string,
+          lastName:      formData.get('lastName')       as string,
+          email:         profile.email,
+          licenseNumber: formData.get('licenseNumber')  as string,
+
+          phoneNumber:   formData.get('phoneNumber')    as string,
+          address:       formData.get('address')        as string,
+          city:          formData.get('city')           as string,
+          state:         formData.get('state')          as string,
+          zipCode:       formData.get('zipCode')        as string,
+
+          carDetails: {
+            make:        formData.get('carDetails.make')         as string,
+            model:       formData.get('carDetails.model')        as string,
+            year:        Number(formData.get('carDetails.year')),
+            color:       formData.get('carDetails.color')        as string,
+            plateNumber: formData.get('carDetails.plateNumber')  as string,
+            vehicleType: formData.get('carDetails.vehicleType')  as string,
+          },
+
+          // renamed to match your service type
+          location:
+            formData.get('latitude') && formData.get('longitude')
+              ? {
+                  latitude:  Number(formData.get('latitude')),
+                  longitude: Number(formData.get('longitude')),
+                }
+              : undefined,
+        }
+
+        updated = await driverService.createProfile(payload)
+      } else {
+        updated = await driverService.updateProfile(formData)
       }
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Save failed");
-      }
+      toast({ title: isNew ? 'Profile Created' : 'Profile Updated' })
+      setProfile({
+        ...updated,
+        ridesHistory: updated.ridesHistory ?? [],
+        reviews:      updated.reviews      ?? [],
+      })
+      setIsNew(false)
+      setIsEditing(false)
+      setTab('details')
 
-      const updated = await res.json();
-      if (updated.imageUrl) setExistingPhotoUrl(updated.imageUrl);
-
+    } catch (err) {
+      console.error('Save profile error:', err)
       toast({
-        title: isUpdate ? "Profile Updated" : "Profile Created",
-        description: "Your driver profile has been saved.",
-      });
-      setIsUpdate(true);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unexpected error";
-      console.error("Save profile error:", err);
-      toast({ title: "Error", description: message, variant: "destructive" });
+        title: 'Error',
+        description: axios.isAxiosError(err)
+          ? err.response?.data?.message ?? 'Save failed'
+          : 'An unexpected error occurred',
+        variant: 'destructive',
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
-
-  if (loading) {
-    return <div className="p-8 text-center">Loading profile…</div>;
   }
 
+  // Upload only photo
+  const handleUploadImage = async () => {
+    if (!photoFile) {
+      toast({ title: 'No photo selected', variant: 'destructive' })
+      return
+    }
+    setLoading(true)
+    try {
+      const mediaData = new FormData()
+      mediaData.append('image', photoFile)
+      const updated = await driverService.uploadMedia(mediaData)
+      toast({ title: 'Photo uploaded!' })
+      setProfile(prev => ({
+        ...updated,
+        ridesHistory: updated.ridesHistory ?? prev.ridesHistory,
+        reviews:      updated.reviews      ?? prev.reviews,
+      }))
+      setTab('details')
+
+    } catch (err) {
+      console.error('Upload image error:', err)
+      toast({
+        title: 'Error uploading photo',
+        description: axios.isAxiosError(err)
+          ? err.response?.data?.message ?? 'Upload failed'
+          : 'Unexpected error',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const signOut = () => {
+    localStorage.clear()
+    toast({ title: 'Signed out' })
+    nav('/')
+  }
+
+  if (loading) return <div className="p-8 text-center">Loading…</div>
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="fixed top-0 left-0 right-0 p-4 bg-background z-10 border-b">
-        <div className="flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-          <h1 className="text-xl font-bold ml-2">Driver Profile</h1>
-        </div>
-      </div>
-
-      <div className="flex-1 container max-w-lg mx-auto pt-20 pb-10 px-4">
-        <div className="mb-6 text-center">
-          <h2 className="text-2xl font-semibold">
-            {isUpdate ? "Edit Your Profile" : "Complete Your Profile"}
-          </h2>
-          <p className="text-muted-foreground">
-            {firstName} {lastName} • {email}
-          </p>
-        </div>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Photo upload */}
-            <FormItem>
-              <FormLabel>Profile Photo</FormLabel>
-              <FormControl>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) setPhotoFile(f);
-                  }}
-                />
-              </FormControl>
-              {existingPhotoUrl && !photoFile && (
-                <img
-                  src={existingPhotoUrl}
-                  alt="Profile"
-                  className="mt-2 w-24 h-24 object-cover rounded-full"
-                />
-              )}
-            </FormItem>
-
-            {/* Other fields */}
-            {[
-              { name: "phoneNumber", label: "Phone Number" },
-              { name: "address",     label: "Street Address" },
-              { name: "city",        label: "City" },
-              { name: "state",       label: "State" },
-              { name: "zipCode",     label: "Zip Code" },
-              { name: "carMake",     label: "Car Make" },
-              { name: "carModel",    label: "Car Model" },
-              { name: "carYear",     label: "Car Year" },
-              { name: "plateNumber", label: "License Plate" },
-            ].map(({ name, label }) => (
-              <FormField
-                key={name}
-                control={form.control}
-                name={name as keyof ProfileFormValues}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{label}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={label} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ))}
-
-            <Button type="submit" className="w-full py-3">
-              {isUpdate ? "Update Profile" : "Save Profile"}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 py-4 border-b">
+          <h1 className="text-2xl font-semibold text-gray-800">
+            {profile.firstName ? `${profile.firstName} ${profile.lastName}` : 'Driver Profile'}
+          </h1>
+          <div className="flex space-x-2">
+            {!isEditing && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="hover:bg-gray-100"
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit2 className="h-4 w-4 mr-1" /> Edit
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-gray-100"
+              onClick={() => { setTab('upload'); setIsEditing(false) }}
+            >
+              <Camera className="h-4 w-4 mr-1" /> Add Image
             </Button>
-          </form>
-        </Form>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-gray-100"
+              onClick={() => nav(-1)}
+            >
+              <ChevronUp className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="px-6 py-3 bg-red-50 text-red-700 border-t border-red-100">
+            {error}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="px-6 pt-6">
+          <Tabs
+            value={tab}
+            onValueChange={(v: string) =>
+  setTab(v as 'details' | 'activity' | 'upload')
+}
+          >
+            <TabsList className="flex space-x-1 bg-gray-100 rounded">
+              {['details','activity','upload'].map(val => (
+                <TabsTrigger
+                  key={val}
+                  value={val}
+                  className="flex-1 py-2 text-center font-medium rounded hover:bg-white hover:shadow"
+                >
+                  {val === 'details' ? 'Profile Details'
+                   : val === 'activity' ? 'Activity & Rides'
+                   : 'Upload Photo'}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {/* DETAILS */}
+            <TabsContent value="details" className="mt-6">
+              {isEditing
+                ? <DriverForm initialData={profile} onSubmit={handleSave} onCancel={() => setIsEditing(false)} />
+                : (
+                  <Card className="shadow-none">
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Email */}
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase">Email</p>
+                        <p className="mt-1 text-gray-800">{profile.email || '-'}</p>
+                      </div>
+                      {/* Phone */}
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase">Phone</p>
+                        <p className="mt-1 text-gray-800">{profile.phoneNumber || '-'}</p>
+                      </div>
+                      {/* Address */}
+                      <div className="md:col-span-2">
+                        <p className="text-xs text-gray-500 uppercase">Address</p>
+                        <p className="mt-1 text-gray-800">{profile.address || '-'}</p>
+                      </div>
+                      {/* City/State/ZIP */}
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase">City / State / ZIP</p>
+                        <p className="mt-1 text-gray-800">
+                          {profile.city || '-'} / {profile.state || '-'} / {profile.zipCode || '-'}
+                        </p>
+                      </div>
+                      {/* Location */}
+                      {profile.location && (
+                        <div className="md:col-span-2 flex items-center space-x-2">
+                          <MapPin className="h-5 w-5 text-indigo-500" />
+                          <p className="text-gray-800">
+                            {profile.location.coordinates[1].toFixed(4)}, {profile.location.coordinates[0].toFixed(4)}
+                          </p>
+                        </div>
+                      )}
+                      {/* Car */}
+                      <div className="md:col-span-2">
+                        <p className="text-xs text-gray-500 uppercase">Car</p>
+                        <p className="mt-1 text-gray-800">
+                          {profile.carDetails
+                            ? `${profile.carDetails.make} ${profile.carDetails.model} (${profile.carDetails.year}) — Plate: ${profile.carDetails.plateNumber}`
+                            : '-'}
+                        </p>
+                      </div>
+                      {/* Photo */}
+                      {profile.imageUrl && (
+                        <div className="md:col-span-2">
+                          <p className="text-xs text-gray-500 uppercase">Photo</p>
+                          <img
+                            src={
+                              profile.imageUrl.startsWith('http')
+                                ? profile.imageUrl
+                                : `${import.meta.env.VITE_DRIVER_SERVICE_URL}/${profile.imageUrl}`
+                            }
+                            alt={`${profile.firstName} ${profile.lastName}`}
+                            className="mt-2 h-32 w-32 rounded-lg object-cover border"
+                          />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+            </TabsContent>
+
+            {/* ACTIVITY */}
+            <TabsContent value="activity" className="mt-6">
+              <Card className="shadow-none">
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Rides</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {profile.ridesHistory.length > 0 ? (
+                    <p className="text-gray-800">
+                      You’ve completed <span className="font-semibold">{profile.ridesHistory.length}</span> rides
+                    </p>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      <User className="h-16 w-16 mx-auto mb-4" />
+                      No ride history yet
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* UPLOAD PHOTO */}
+            <TabsContent value="upload" className="mt-6">
+              <Card className="shadow-none">
+                <CardHeader>
+                  <CardTitle className="text-lg">Upload Driver Photo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="block w-full text-sm text-gray-600"
+                      onChange={e => setPhotoFile(e.target.files?.[0] ?? null)}
+                    />
+                    <Button onClick={handleUploadImage} className="w-full">
+                      Upload
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Sign out */}
+        <div className="px-6 py-4 border-t text-center">
+          <Button
+            variant="outline"
+            className="w-full py-3 text-red-600 hover:bg-red-50"
+            onClick={signOut}
+          >
+            Sign out
+          </Button>
+        </div>
       </div>
     </div>
-  );
+  )
 }

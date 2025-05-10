@@ -21,17 +21,14 @@ router.use(authenticateToken);
 
 // Create profile (with optional image+video upload)
 router
-  .route("/drivers/profile")
-  .post(authenticateToken, createDriver)
+  .route('/profile')
   .get(authenticateToken, getDriverProfile)
+  .post(authenticateToken, createDriver)                              // createDriver handles POST
   .patch(
     authenticateToken,
-    upload.fields([
-      { name: "image", maxCount: 1 },
-      { name: "video", maxCount: 1 },
-    ]),
-    updateDriverProfile         // <- unified update handler
-  );
+    upload.fields([{ name: 'image' }, { name: 'video' }]),  // multer to parse your FormData
+    updateDriverProfile
+  )
 
 
 // Get own profile
