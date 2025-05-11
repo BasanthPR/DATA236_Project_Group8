@@ -15,8 +15,13 @@ import {
   getDriverReviews
 } from '../controllers/driverReview.js'
 import { authenticateToken } from '../middleware/authMiddleware.js'
-import { createDriverRules, getNearbyDriversRules, validate } from '../middleware/validators.js';
-
+import { 
+  createDriverRules, 
+  getNearbyDriversRules, 
+  validate,
+  updateLocationRules,
+  reviewRules 
+} from '../middleware/validators.js';
 
 const router = express.Router()
 const upload = multer({ storage })
@@ -30,12 +35,13 @@ router.use(authenticateToken)
 router
   .route('/profile')
   .get(getDriverProfile)                                 // GET  /api/drivers/profile
-  .post(authenticateToken,
+  .post(
     createDriverRules,
     validate,
     createDriver)                                    // POST /api/drivers/profile
   .patch(
     upload.fields([{ name: 'image' }, { name: 'video' }]),
+    validate,
     updateDriverProfile                                  // PATCH /api/drivers/profile
   )
 
@@ -48,8 +54,7 @@ router.patch(
     { name: 'image', maxCount: 1 },
     { name: 'video', maxCount: 1 }
   ]),
-  authenticateToken,
-   validate,
+  validate,
   updateDriverMedia                                      // PATCH /api/drivers/media
 )
 
@@ -58,6 +63,8 @@ router.patch(
  */
 router.patch(
   '/location',
+  updateLocationRules,
+  validate,
   updateDriverLocation                                   // PATCH /api/drivers/location
 )
 
@@ -66,10 +73,9 @@ router.patch(
  */
 router.get(
   '/nearby', 
-  authenticateToken,
-    getNearbyDriversRules,
-    validate,
-    getNearbyDrivers                                       // GET  /api/drivers/nearby
+  getNearbyDriversRules,
+  validate,
+  getNearbyDrivers                                       // GET  /api/drivers/nearby
 )
 
 /**
@@ -79,7 +85,7 @@ router.get(
  */
 router
   .route('/reviews')
-  .post(addDriverReview)
+  .post(reviewRules, validate, addDriverReview)
   .get(getDriverReviews)
 
 export default router

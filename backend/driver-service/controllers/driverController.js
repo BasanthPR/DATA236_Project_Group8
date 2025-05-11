@@ -1,10 +1,12 @@
 // controllers/driverController.js
 import Driver from "../models/driver.js";
 import redisClient from "../../shared/redis/redisClient.js";
+import { publish } from "../utils/kafkaClient.js";
 
 // Create driver details from logged in user
 export const createDriver = async (req, res) => {
   const userEmail = req.user.email;
+  const userId = req.user.id; // Get userId from authenticated user
   const {
     licenseNumber,
     firstName,
@@ -35,7 +37,8 @@ export const createDriver = async (req, res) => {
     } while (await Driver.findOne({ driverId }));
 
     const driver = new Driver({
-      email:          userEmail,
+      userId,           // Add userId from authenticated user
+      email: userEmail,
       driverId,
       licenseNumber,
       firstName,
@@ -45,7 +48,14 @@ export const createDriver = async (req, res) => {
       city,
       state,
       zipCode,
-      carDetails,
+      carDetails: {
+        make: carDetails.make,
+        model: carDetails.model,
+        year: carDetails.year,
+        color: carDetails.color,
+        plateNumber: carDetails.plateNumber,
+        vehicleType: carDetails.vehicleType
+      },
       location: {
         type: 'Point',
         coordinates: [location.longitude, location.latitude]
@@ -61,15 +71,18 @@ export const createDriver = async (req, res) => {
     // Invalidate cache
     await redisClient.del(`driver:${userEmail}`);
 
-    
-
-    // Emit driver.created
-    await publish('driver.created', {
-      driverId:  driver.driverId,
-      email:     driver.email,
-      name:      `${driver.firstName} ${driver.lastName}`,
-      createdAt: driver.createdAt
-    });
+    // Emit driver.created event
+    try {
+      await publish('driver.created', {
+        driverId:  driver.driverId,
+        email:     driver.email,
+        name:      `${driver.firstName} ${driver.lastName}`,
+        createdAt: driver.createdAt
+      });
+    } catch (kafkaError) {
+      console.error('❌ Kafka publish error:', kafkaError);
+      // Don't fail the request if Kafka publish fails
+    }
 
     return res.status(201).json({
       status: 'success',
@@ -194,7 +207,7 @@ export const updateDriverLocation = async (req, res) => {
 
 /**
  * PATCH /api/drivers/media
- * Upload or replace the driver’s photo and/or video.
+ * Upload or replace the driver's photo and/or video.
  */
 export const updateDriverMedia = async (req, res) => {
   const userEmail = req.user.email;

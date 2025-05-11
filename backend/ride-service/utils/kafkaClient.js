@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config(); // ✅ Load environment variables early
 
-import { Kafka } from 'kafkajs';
+import { Kafka, Partitioners } from 'kafkajs';
 
 class KafkaClient {
   constructor() {
@@ -15,17 +15,25 @@ class KafkaClient {
       brokers
     });
 
-    this.producer = this.kafka.producer();
+    this.producer = this.kafka.producer({
+      createPartitioner: Partitioners.LegacyPartitioner
+    });
+    
     this.consumer = this.kafka.consumer({
       groupId: process.env.KAFKA_GROUP_ID || 'uber-simulation-group'
     });
+
+    this.isConnected = false;
   }
 
   async connect() {
     try {
-      await this.producer.connect();
-      await this.consumer.connect();
-      console.log('✅ Connected to Kafka');
+      if (!this.isConnected) {
+        await this.producer.connect();
+        await this.consumer.connect();
+        this.isConnected = true;
+        console.log('✅ Connected to Kafka');
+      }
     } catch (error) {
       console.error('❌ Failed to connect to Kafka:', error);
       throw error;
@@ -34,9 +42,12 @@ class KafkaClient {
 
   async disconnect() {
     try {
-      await this.producer.disconnect();
-      await this.consumer.disconnect();
-      console.log('✅ Disconnected from Kafka');
+      if (this.isConnected) {
+        await this.producer.disconnect();
+        await this.consumer.disconnect();
+        this.isConnected = false;
+        console.log('✅ Disconnected from Kafka');
+      }
     } catch (error) {
       console.error('❌ Failed to disconnect from Kafka:', error);
       throw error;
@@ -45,6 +56,10 @@ class KafkaClient {
 
   async publish(topic, message) {
     try {
+      if (!this.isConnected) {
+        await this.connect();
+      }
+
       await this.producer.send({
         topic,
         messages: [{ value: JSON.stringify(message) }]
@@ -58,6 +73,10 @@ class KafkaClient {
 
   async subscribe(topic, callback) {
     try {
+      if (!this.isConnected) {
+        await this.connect();
+      }
+
       await this.consumer.subscribe({ topic });
       console.log(`🔁 Subscribed to topic: ${topic}`);
 
