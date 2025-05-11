@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { Apple, Github } from "lucide-react";
+import { Apple } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
+import { useUser } from "@/contexts/UserContext";
 
 const SignupPage = () => {
   const [firstName, setFirstName] = useState("");
@@ -14,78 +15,94 @@ const SignupPage = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { loginCustomer } = useUser();
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-  
-    // ✅ Frontend field validation
-    if (!firstName || !lastName || !email || !password) {
+    
+    // For demo purposes, just check if all fields are provided
+    if (firstName && lastName && email && password) {
+      // Create a customer profile
+      const customerProfile = {
+        id: `CUST-${Math.floor(Math.random() * 9000) + 1000}`,
+        firstName,
+        lastName,
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        phoneNumber: "",
+        email,
+        rating: 5.0,
+        cardDetails: {
+          last4Digits: "",
+          cardType: "",
+          expiryMonth: 0,
+          expiryYear: 0
+        },
+        ridesHistory: [],
+        reviews: [],
+        paymentMethods: []
+      };
+      
+      // Login the customer with the created profile
+      loginCustomer(customerProfile);
+      
+      setTimeout(() => {
+        setIsLoading(false);
+        toast({
+          title: "Account created",
+          description: "Your account has been successfully created. Please complete your profile information."
+        });
+        navigate('/profile/edit');
+      }, 1000);
+    } else {
+      setIsLoading(false);
       toast({
-        title: "Missing fields",
+        title: "Signup failed",
         description: "Please fill in all required fields.",
         variant: "destructive"
       });
-      setIsLoading(false);
-      return;
-    }
-  
-    try {
-      const response = await fetch("http://localhost:4001/api/auth/signup/customer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email,
-          password
-        })
-      });
-  
-      const data = await response.json();
-  
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", `${data.user.firstName} ${data.user.lastName}`);
-        toast({
-          title: "Account created",
-          description: "Your account has been successfully created."
-        });
-        navigate("/");
-      } else {
-        toast({
-          title: "Signup failed",
-          description: data.message || "Something went wrong",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Signup failed",
-        description: "Network error. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
-  
+
   const handleThirdPartySignup = (provider: string) => {
     setIsLoading(true);
     
     setTimeout(() => {
-      setIsLoading(false);
-      // Using a generic username based on the provider
-      const username = `${provider}User`;
-      localStorage.setItem('username', username);
+      // Create a customer profile for the third-party signup
+      const customerProfile = {
+        id: `CUST-${Math.floor(Math.random() * 9000) + 1000}`,
+        firstName: `${provider}`,
+        lastName: "User",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        phoneNumber: "",
+        email: `${provider.toLowerCase()}@example.com`,
+        rating: 5.0,
+        cardDetails: {
+          last4Digits: "",
+          cardType: "",
+          expiryMonth: 0,
+          expiryYear: 0
+        },
+        ridesHistory: [],
+        reviews: [],
+        paymentMethods: []
+      };
       
+      // Login the customer with the created profile
+      loginCustomer(customerProfile);
+      
+      setIsLoading(false);
       toast({
         title: "Account created",
-        description: `Your account has been successfully created with ${provider}.`
+        description: `Your account has been successfully created with ${provider}. Please complete your profile information.`
       });
-      navigate('/');
+      navigate('/profile/edit');
     }, 1000);
   };
 
@@ -101,7 +118,7 @@ const SignupPage = () => {
       
       <main className="flex-1 flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md">
-          <h1 className="text-3xl font-bold mb-6">Create your account</h1>
+          <h1 className="text-3xl font-bold mb-6">Create a rider account</h1>
           
           <div className="space-y-4 mb-8">
             <Button
@@ -210,6 +227,12 @@ const SignupPage = () => {
                 Sign in
               </Link>
             </p>
+            <p className="text-gray-600 mt-2">
+              Want to drive with Uber?{" "}
+              <Link to="/driver/signup" className="text-black font-medium">
+                Sign up to drive
+              </Link>
+            </p>
           </div>
         </div>
       </main>
@@ -218,308 +241,3 @@ const SignupPage = () => {
 };
 
 export default SignupPage;
-
-// import { useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import { Link } from "react-router-dom";
-// import { Button } from "@/components/ui/button";
-// import { Input } from "@/components/ui/input";
-// import { toast } from "@/components/ui/use-toast";
-
-// const SignupPage = () => {
-//   const [formData, setFormData] = useState({
-//     customer_id: "",
-//     first_name: "",
-//     last_name: "",
-//     address: "",
-//     city: "",
-//     state: "",
-//     zip_code: "",
-//     phone_number: "",
-//     email: "",
-//     card_type: "",
-//     last_4_digits: "",
-//     expiry_month: "",
-//     expiry_year: "",
-//     password: "",
-//   });
-//   const [isLoading, setIsLoading] = useState(false);
-//   const navigate = useNavigate();
-
-//   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     const { name, value } = e.target;
-//     setFormData((prev) => ({ ...prev, [name]: value }));
-//   };
-
-//   const validateForm = () => {
-//     const {
-//       customer_id,
-//       first_name,
-//       last_name,
-//       address,
-//       city,
-//       state,
-//       zip_code,
-//       phone_number,
-//       email,
-//       card_type,
-//       last_4_digits,
-//       expiry_month,
-//       expiry_year,
-//       password,
-//     } = formData;
-
-//     if (
-//       !customer_id ||
-//       !first_name ||
-//       !last_name ||
-//       !address ||
-//       !city ||
-//       !state ||
-//       !zip_code ||
-//       !phone_number ||
-//       !email ||
-//       !card_type ||
-//       !last_4_digits ||
-//       !expiry_month ||
-//       !expiry_year ||
-//       !password
-//     ) {
-//       toast({
-//         title: "Missing fields",
-//         description: "Please fill in all required fields.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     if (!/^\d{10}$/.test(phone_number)) {
-//       toast({
-//         title: "Invalid phone number",
-//         description: "Phone number must be 10 digits.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     if (!/^\d{5}$/.test(zip_code)) {
-//       toast({
-//         title: "Invalid ZIP code",
-//         description: "ZIP code must be 5 digits.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     if (!/^\S+@\S+\.\S+$/.test(email)) {
-//       toast({
-//         title: "Invalid email",
-//         description: "Please enter a valid email address.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     if (!/^\d{4}$/.test(last_4_digits)) {
-//       toast({
-//         title: "Invalid Card Details",
-//         description: "Last 4 digits must be exactly 4 numbers.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     if (!/^(0[1-9]|1[0-2])$/.test(expiry_month)) {
-//       toast({
-//         title: "Invalid Expiry Month",
-//         description: "Expiry month must be between 01 and 12.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     if (!/^\d{4}$/.test(expiry_year)) {
-//       toast({
-//         title: "Invalid Expiry Year",
-//         description: "Expiry year must be a 4-digit number.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     if (password.length < 6) {
-//       toast({
-//         title: "Weak password",
-//         description: "Password must be at least 6 characters long.",
-//         variant: "destructive",
-//       });
-//       return false;
-//     }
-
-//     return true;
-//   };
-
-//   const handleSignup = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setIsLoading(true);
-
-//     if (!validateForm()) {
-//       setIsLoading(false);
-//       return;
-//     }
-
-//     try {
-//       const response = await fetch("http://localhost:3000/api/auth/signup", {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify(formData),
-//       });
-
-//       const data = await response.json();
-
-//       if (response.ok) {
-//         toast({
-//           title: "Account created",
-//           description: "Your account has been successfully created.",
-//         });
-//         navigate("/");
-//       } else {
-//         toast({
-//           title: "Signup failed",
-//           description: data.message || "Something went wrong",
-//           variant: "destructive",
-//         });
-//       }
-//     } catch (error) {
-//       toast({
-//         title: "Signup failed",
-//         description: "Network error. Please try again.",
-//         variant: "destructive",
-//       });
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div className="min-h-screen flex flex-col bg-white">
-//       <header className="border-b border-gray-200 py-4">
-//         <div className="container mx-auto px-4">
-//           <Link to="/" className="text-black text-2xl font-bold">
-//             Uber
-//           </Link>
-//         </div>
-//       </header>
-
-//       <main className="flex-1 flex items-center justify-center py-12 px-4">
-//         <div className="w-full max-w-md">
-//           <h1 className="text-3xl font-bold mb-6">Create your account</h1>
-
-//           <form onSubmit={handleSignup} className="space-y-4">
-//             <Input
-//               name="customer_id"
-//               placeholder="Customer ID"
-//               value={formData.customer_id}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="first_name"
-//               placeholder="First Name"
-//               value={formData.first_name}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="last_name"
-//               placeholder="Last Name"
-//               value={formData.last_name}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="address"
-//               placeholder="Address"
-//               value={formData.address}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="city"
-//               placeholder="City"
-//               value={formData.city}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="state"
-//               placeholder="State"
-//               value={formData.state}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="zip_code"
-//               placeholder="ZIP Code"
-//               value={formData.zip_code}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="phone_number"
-//               placeholder="Phone Number"
-//               value={formData.phone_number}
-//               onChange={handleChange}
-//             />
-//             <Input
-//               name="email"
-//               placeholder="Email"
-//               value={formData.email}
-//               onChange={handleChange}
-//             />
-
-//             <h2 className="text-xl font-bold mt-6">Credit Card</h2>
-//             <Input
-//               name="card_type"
-//               placeholder="Card Type (e.g., Visa, MasterCard)"
-//               value={formData.card_type}
-//               onChange={handleChange}
-//             />
-//             <div className="flex gap-4">
-//               <Input
-//                 name="last_4_digits"
-//                 placeholder="Last 4 Digits"
-//                 value={formData.last_4_digits}
-//                 onChange={handleChange}
-//                 className="flex-1"
-//               />
-//               <Input
-//                 name="expiry_month"
-//                 placeholder="Expiry Month (MM)"
-//                 value={formData.expiry_month}
-//                 onChange={handleChange}
-//                 className="flex-1"
-//               />
-//               <Input
-//                 name="expiry_year"
-//                 placeholder="Expiry Year (YYYY)"
-//                 value={formData.expiry_year}
-//                 onChange={handleChange}
-//                 className="flex-1"
-//               />
-//             </div>
-
-//             <Input
-//               name="password"
-//               type="password"
-//               placeholder="Password"
-//               value={formData.password}
-//               onChange={handleChange}
-//             />
-
-//             <Button type="submit" className="w-full" disabled={isLoading}>
-//               {isLoading ? "Creating Account..." : "Sign Up"}
-//             </Button>
-//           </form>
-//         </div>
-//       </main>
-//     </div>
-//   );
-// };
-
-// export default SignupPage;

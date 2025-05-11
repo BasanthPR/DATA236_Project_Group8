@@ -4,54 +4,61 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import Layout from "@/components/Layout";
 import HomePage from "./pages/HomePage";
 import DrivePage from "./pages/DrivePage";
-import DeliverPage from "./pages/DeliverPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import RidePage from "./pages/RidePage";
 import ProfilePage from "./pages/ProfilePage";
 import ActivityPage from "./pages/ActivityPage";
-import ReviewsPage from "./pages/ReviewsPage"; // Add this import
 import NotFound from "./pages/NotFound";
 import DriverSignupPage from "./pages/DriverSignupPage";
 import DriverLoginPage from "./pages/DriverLoginPage";
-import DriverProfilePage from "./pages/driverProfile";
-import DriverDashboardPage  from "./pages/DriverDashboard";
-import DriverReviewsPage from "./pages/driverReview"; // Add this import
-// import BillingPage from "./pages/BillingPage";
+import BillingPage from "./pages/BillingPage";
+import PaymentPage from "./pages/PaymentPage";
+import DriverDashboardPage from "./pages/DriverDashboardPage";
+import EditProfilePage from "./pages/EditProfilePage";
+import { UserProvider } from "./contexts/UserContext";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminSignup from "./pages/admin/AdminSignup";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" attribute="class">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/drive" element={<DrivePage />} />
-            <Route path="/deliver" element={<DeliverPage />} />
-            <Route path="/ride" element={<RidePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/reviews" element={<ReviewsPage />} /> {/* Add this route */}
-            <Route path="/activity" element={<ActivityPage />} />
-            <Route path="/driver/signup" element={<DriverSignupPage />} />
-            <Route path="/driver/login" element={<DriverLoginPage />} />
-            <Route path="/driver/profile" element={<DriverProfilePage />} />
-            <Route path="/driver/reviews" element={<DriverReviewsPage />} />
-            <Route path="/driver/dashboard" element={<DriverDashboardPage />} />
-            
-            {/* Uncomment the following line when the BillingPage is ready */}
-            {/* <Route path="/billing" element={<BillingPage />} /> */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <UserProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Layout><HomePage /></Layout>} />
+              <Route path="/drive" element={<Layout><DrivePage /></Layout>} />
+              <Route path="/ride" element={<Layout><RidePage /></Layout>} />
+              <Route path="/login" element={<Layout><LoginPage /></Layout>} />
+              <Route path="/signup" element={<Layout><SignupPage /></Layout>} />
+              <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
+              <Route path="/profile/edit" element={<Layout><EditProfilePage /></Layout>} />
+              <Route path="/activity" element={<Layout><ActivityPage /></Layout>} />
+              <Route path="/driver/signup" element={<Layout><DriverSignupPage /></Layout>} />
+              <Route path="/driver/login" element={<Layout><DriverLoginPage /></Layout>} />
+              <Route path="/driver/dashboard" element={<Layout><DriverDashboardPage /></Layout>} />
+              <Route path="/billing" element={<Layout><BillingPage /></Layout>} />
+              <Route path="/payment" element={<Layout><PaymentPage /></Layout>} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/signup" element={<AdminSignup />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              
+              <Route path="*" element={<Layout><NotFound /></Layout>} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </UserProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

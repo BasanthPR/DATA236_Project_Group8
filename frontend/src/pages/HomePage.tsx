@@ -1,279 +1,226 @@
-// src/pages/HomePage.tsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronDown, Calendar, Clock } from "lucide-react";
+import { Search, Clock, Car, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import MainNavbar from "@/components/MainNavbar";
-import Map from "@/components/Map";
-import axios from "axios";
-
-interface MapboxFeature {
-  id: string;
-  place_name: string;
-  center: [number, number];
-}
+import { useUser } from "@/contexts/UserContext";
+import { useAppDispatch } from "@/store";
+import { clearLastSearch, setLastSearch } from "@/store/slices/rideSlice";
 
 const HomePage = () => {
-  const [pickup, setPickup] = useState("");
-  const [dropoff, setDropoff] = useState("");
-  const [pickupLocation, setPickupLocation] = useState<[number, number]>();
-  const [dropoffLocation, setDropoffLocation] = useState<[number, number]>();
-  const [mapboxToken, setMapboxToken] = useState("");
-  const [pickupSuggestions, setPickupSuggestions] = useState<MapboxFeature[]>([]);
-  const [dropoffSuggestions, setDropoffSuggestions] = useState<MapboxFeature[]>([]);
-  const [activeField, setActiveField] = useState<"pickup" | "dropoff" | null>(null);
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { isCustomerLoggedIn, customerProfile } = useUser();
+  const [pickup, setPickup] = useState("");
+  const [destination, setDestination] = useState("");
+  const [pickupTime, setPickupTime] = useState("Now");
+  
+  // Get recent rides from localStorage (if any)
+  const recentRides = customerProfile?.ridesHistory || [];
 
-  // Fetch Mapbox token once on mount
+  // Clear the last search when component mounts
   useEffect(() => {
-    const fetchToken = async () => {
-      try {
-        const res = await fetch("http://localhost:4001/api/mapbox-token");
-        const data = await res.json();
-        setMapboxToken(data.token);
-      } catch (err) {
-        console.error("Failed to fetch Mapbox token", err);
-      }
-    };
-    fetchToken();
-  }, []);
+    dispatch(clearLastSearch());
+    
+    // Clear pickup and dropoff from session storage
+    sessionStorage.removeItem('pickup');
+    sessionStorage.removeItem('dropoff');
+  }, [dispatch]);
 
-  // Fetch pickup suggestions
-  useEffect(() => {
-    if (!mapboxToken || pickup.length < 3) {
-      setPickupSuggestions([]);
-      return;
-    }
-    const controller = new AbortController();
-    fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-        pickup
-      )}.json?access_token=${mapboxToken}&autocomplete=true&limit=5`,
-      { signal: controller.signal }
-    )
-      .then((res) => res.json())
-      .then((data) => setPickupSuggestions(data.features || []))
-      .catch((err) => {
-        if (err.name !== "AbortError") console.error(err);
-      });
-    return () => controller.abort();
-  }, [pickup, mapboxToken]);
-
-  // Fetch dropoff suggestions
-  useEffect(() => {
-    if (!mapboxToken || dropoff.length < 3) {
-      setDropoffSuggestions([]);
-      return;
-    }
-    const controller = new AbortController();
-    fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-        dropoff
-      )}.json?access_token=${mapboxToken}&autocomplete=true&limit=5`,
-      { signal: controller.signal }
-    )
-      .then((res) => res.json())
-      .then((data) => setDropoffSuggestions(data.features || []))
-      .catch((err) => {
-        if (err.name !== "AbortError") console.error(err);
-      });
-    return () => controller.abort();
-  }, [dropoff, mapboxToken]);
-
-  const handleSeePrices = async () => {
-    if (!pickup || !dropoff || !pickupLocation || !dropoffLocation) {
-      alert("Please enter both pickup and dropoff locations.");
-      return;
-    }
-
-    // Redirect to login if not authenticated
-    if (!localStorage.getItem("token")) {
-      navigate("/login");
-      return;
-    }
-
-    try {
-      const res = await axios.post("http://localhost:4001/api/rides", {
-        pickup,
-        dropoff,
-        pickupCoords: pickupLocation,
-        dropoffCoords: dropoffLocation,
-        time: "Now",
-        rider: "For me",
-        additionalStops: [],
-      });
-
-      console.log("Ride saved from homepage:", res.data);
-      navigate("/ride-options", { state: res.data });
-    } catch (err) {
-      console.error("Error saving ride from homepage:", err);
-      alert("Something went wrong. Try again.");
+  const handleRideSearch = () => {
+    if (pickup && destination) {
+      // Save pickup and destination to Redux
+      dispatch(setLastSearch({ pickup, dropoff: destination }));
+      
+      // Go directly to ride selection
+      navigate('/ride?selection=true');
     }
   };
 
+  const handleRideOptionClick = (rideType: string) => {
+    navigate(`/ride?type=${rideType}`);
+  };
+
   return (
-    <div className="min-h-screen bg-white text-black flex flex-col">
-      <MainNavbar />
-
-      <main className="flex-1">
-        <section className="pt-20 px-4 md:px-8 lg:px-16 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-12 items-start">
-            {/* Left: Form */}
-            <div>
-              <h1 className="text-5xl font-bold mb-8">
-                Go anywhere with
-                <br />
-                Uber
-              </h1>
-
-              <div className="space-y-2 max-w-xl">
-                {/* Pickup Input */}
+    <div className="min-h-screen bg-white">
+      {/* Main content */}
+      <main className="container mx-auto py-12 px-4">
+        <div className="flex flex-col md:flex-row gap-10">
+          {/* Left side - Ride Request Form */}
+          <div className="w-full md:w-1/2 lg:w-5/12">
+            <h1 className="text-5xl font-bold mb-8">Go anywhere with Uber</h1>
+              
+            <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+              <div className="space-y-4 mb-4">
+                {/* Pickup location */}
                 <div className="relative">
-                  <span className="absolute top-1/2 -translate-y-1/2 left-3 w-2 h-2 bg-black rounded-full" />
+                  <div className="absolute top-3 left-3">
+                    <div className="w-2 h-2 bg-black rounded-full"></div>
+                  </div>
                   <input
                     type="text"
-                    placeholder="Pickup location"
-                    className="w-full px-4 py-3 pl-8 border border-gray-300 rounded-md"
+                    placeholder="Enter pickup location"
+                    className="w-full p-3 pl-8 border border-gray-300 rounded-md focus:outline-none"
                     value={pickup}
                     onChange={(e) => setPickup(e.target.value)}
-                    onFocus={() => setActiveField("pickup")}
-                    onBlur={() => setTimeout(() => setActiveField(null), 200)}
                   />
-                  {activeField === "pickup" && pickupSuggestions.length > 0 && (
-                    <ul className="absolute z-50 top-full left-0 right-0 bg-white border rounded-md shadow mt-1 max-h-60 overflow-y-auto">
-                      {pickupSuggestions.map((place) => (
-                        <li
-                          key={place.id}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onMouseDown={() => {
-                            setPickup(place.place_name);
-                            setPickupLocation(place.center);
-                            setPickupSuggestions([]);
-                            setActiveField(null);
-                          }}
-                        >
-                          {place.place_name}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
-
-                {/* Dropoff Input */}
+                
+                {/* Destination */}
                 <div className="relative">
-                  <span className="absolute top-1/2 -translate-y-1/2 left-3 w-2 h-2 bg-black rounded-full" />
+                  <div className="absolute top-3 left-3">
+                    <div className="w-2 h-2 bg-black rounded-full"></div>
+                  </div>
                   <input
                     type="text"
-                    placeholder="Dropoff location"
-                    className="w-full px-4 py-3 pl-8 border border-gray-300 rounded-md"
-                    value={dropoff}
-                    onChange={(e) => setDropoff(e.target.value)}
-                    onFocus={() => setActiveField("dropoff")}
-                    onBlur={() => setTimeout(() => setActiveField(null), 200)}
+                    placeholder="Enter destination"
+                    className="w-full p-3 pl-8 border border-gray-300 rounded-md focus:outline-none"
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
                   />
-                  {activeField === "dropoff" && dropoffSuggestions.length > 0 && (
-                    <ul className="absolute z-50 top-full left-0 right-0 bg-white border rounded-md shadow mt-1 max-h-60 overflow-y-auto">
-                      {dropoffSuggestions.map((place) => (
-                        <li
-                          key={place.id}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onMouseDown={() => {
-                            setDropoff(place.place_name);
-                            setDropoffLocation(place.center);
-                            setDropoffSuggestions([]);
-                            setActiveField(null);
-                          }}
-                        >
-                          {place.place_name}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="flex items-center justify-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Today
-                  </Button>
-                  <Button variant="outline" className="flex items-center justify-between gap-2">
+                </div>
+                
+              <div className="flex space-x-4 mb-4">
+                {/* Pickup time selector */}
+                <Button variant="outline" className="flex items-center justify-between w-1/2 border border-gray-300 p-2">
                     <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Now
+                      <Clock className="h-5 w-5 mr-2" />
+                    <span>Today</span>
                     </div>
-                    <ChevronDown className="h-4 w-4" />
                   </Button>
+                  
+                {/* Time selector */}
+                <Button variant="outline" className="flex items-center justify-between w-1/2 border border-gray-300 p-2">
+                        <div className="flex items-center">
+                          <Clock className="h-5 w-5 mr-2" />
+                    <span>{pickupTime}</span>
+                        </div>
+                      </Button>
                 </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="default"
-                    className="bg-black hover:bg-gray-800 text-white"
-                    onClick={handleSeePrices}
-                  >
-                    See prices
-                  </Button>
-                  <Link to="/login" className="text-black hover:text-gray-700 py-2 flex items-center">
-                    Log in to see your recent activity
-                  </Link>
+                
+                <Button 
+                className="w-full bg-black hover:bg-gray-800 text-white font-medium py-3 rounded-md"
+                onClick={handleRideSearch}
+                disabled={!pickup || !destination}
+                >
+                  <Search className="h-5 w-5 mr-2" />
+                  Search
+                </Button>
+            </div>
+            
+            {recentRides.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-medium mb-3">View your recent activity</h3>
+                <div className="divide-y divide-gray-200">
+                  {recentRides.slice(0, 3).map((ride, index) => (
+                    <div key={index} className="py-3 cursor-pointer hover:bg-gray-50 rounded">
+                      <div className="flex items-start">
+                        <div className="bg-gray-200 p-2 rounded-full mr-4">
+                          <Car className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{ride.destination}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(ride.date).toLocaleDateString()} • ${ride.price?.toFixed(2) || '0.00'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Right side - Map or Image */}
+          <div className="w-full md:w-1/2 lg:w-7/12 mt-8 md:mt-0">
+            <div className="h-96 md:h-full bg-gray-200 rounded-lg overflow-hidden">
+              <div className="w-full h-full bg-[url('/map-background.jpg')] bg-cover bg-center">
+                {/* Map interface would go here in a real implementation */}
+                <div className="h-full flex items-center justify-center">
+                  <div className="bg-white bg-opacity-80 p-6 rounded-lg shadow-lg">
+                    <MapPin className="h-10 w-10 mx-auto mb-3 text-black" />
+                    <p className="text-center font-medium">Map view will be shown here when you select locations</p>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Right: Map Display */}
-            <div className="w-full h-[400px]">
-              <Map pickupLocation={pickupLocation} dropoffLocation={dropoffLocation} className="h-full" />
+          </div>
+        </div>
+        
+        {/* Suggestions */}
+        <section className="mt-16">
+          <h2 className="text-2xl font-bold mb-6">Suggestions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <div 
+              className="bg-gray-100 p-6 rounded-xl hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleRideOptionClick('hourly')}
+            >
+              <h3 className="text-xl font-medium mb-1">Hourly</h3>
+              <p className="text-gray-600 mb-4">Book by the hour to run errands or explore a new city</p>
+            </div>
+            
+            <div 
+              className="bg-gray-100 p-6 rounded-xl hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleRideOptionClick('reserve')}
+                >
+              <h3 className="text-xl font-medium mb-1">Reserve</h3>
+              <p className="text-gray-600 mb-4">Schedule your ride in advance for peace of mind</p>
+            </div>
+            
+            <div 
+              className="bg-gray-100 p-6 rounded-xl hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleRideOptionClick('group')}
+            >
+              <h3 className="text-xl font-medium mb-1">Group Ride</h3>
+              <p className="text-gray-600 mb-4">Travel with friends and split the fare automatically</p>
+                  </div>
+                </div>
+        </section>
+        
+        {/* Footer */}
+        <footer className="mt-20 py-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div>
+              <h4 className="font-bold mb-4">Company</h4>
+              <ul className="space-y-2">
+                <li><a href="#" className="text-gray-600 hover:text-black">About us</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Our offerings</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Newsroom</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Investors</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Products</h4>
+              <ul className="space-y-2">
+                <li><a href="#" className="text-gray-600 hover:text-black">Ride</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Drive</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Deliver</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Business</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Support</h4>
+              <ul className="space-y-2">
+                <li><a href="#" className="text-gray-600 hover:text-black">Help Center</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Contact us</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Safety</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">COVID-19 resources</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Legal</h4>
+              <ul className="space-y-2">
+                <li><a href="#" className="text-gray-600 hover:text-black">Terms & Conditions</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Privacy Policy</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-black">Accessibility</a></li>
+              </ul>
             </div>
           </div>
-        </section>
-
-        {/* Suggestions Section */}
-        <section className="py-12 px-4 md:px-8 lg:px-16 max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">Suggestions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                id: "courier",
-                title: "Courier",
-                description: "Uber makes same-day item delivery easier than ever.",
-                link: "/deliver"
-              },
-              {
-                id: "grocery",
-                title: "Grocery",
-                description: "Get groceries delivered to your door with Uber Eats.",
-                link: "https://www.ubereats.com/"
-              },
-              {
-                id: "hourly",
-                title: "Hourly",
-                description: "Request a trip for a block of time and make multiple stops.",
-                link: "/ride"
-              }
-            ].map((suggestion) => (
-              <div key={suggestion.id} className="bg-gray-100 p-6 rounded-lg">
-                <h3 className="text-xl font-bold mb-2">{suggestion.title}</h3>
-                <p className="text-gray-700 mb-6">{suggestion.description}</p>
-                <div className="flex justify-between items-end">
-                  {suggestion.id === "grocery" ? (
-                    <a
-                      href={suggestion.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-black font-medium hover:underline"
-                    >
-                      Details
-                    </a>
-                  ) : (
-                    <Link to={suggestion.link} className="text-black font-medium hover:underline">
-                      Details
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="mt-10 pt-6 border-t border-gray-200">
+            <p className="text-gray-600 text-sm">© {new Date().getFullYear()} Uber Technologies Inc.</p>
           </div>
-        </section>
+        </footer>
       </main>
     </div>
   );

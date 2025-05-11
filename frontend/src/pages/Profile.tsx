@@ -1,81 +1,27 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+
 import { User, CreditCard, Clock, Settings, LogOut } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { toast } from "@/components/ui/use-toast";
 
 const Profile = () => {
-  const { username: urlUsername } = useParams();
-  const navigate = useNavigate();
-
-  const [user, setUser] = useState({
-    name: "",
-    email: "",
+  // Sample user data
+  const user = {
+    name: "John Doe",
+    email: "john.doe@example.com",
     rating: 4.89,
     photoUrl: "https://randomuser.me/api/portraits/men/32.jpg"
-  });
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const storedUsername = localStorage.getItem("username");
-    const email = localStorage.getItem("email");
-
-    // Redirect if not logged in
-    if (!token || !storedUsername || !email) {
-      toast({
-        title: "Unauthorized",
-        description: "Please log in to access your profile.",
-        variant: "destructive"
-      });
-      navigate("/login");
-      return;
-    }
-
-    // Optional: redirect if someone tries to access another user's profile
-    const urlName = urlUsername?.replace(/-/g, " ").toLowerCase();
-    const storedName = storedUsername.toLowerCase();
-    if (urlName !== storedName) {
-      toast({
-        title: "Access Denied",
-        description: "You can only view your own profile.",
-        variant: "destructive"
-      });
-      navigate("/");
-      return;
-    }
-
-    setUser({
-      name: storedUsername,
-      email,
-      rating: 4.89,
-      photoUrl: "https://randomuser.me/api/portraits/men/32.jpg"
-    });
-  }, [navigate, urlUsername]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("email");
-
-    toast({
-      title: "Logged out",
-      description: "You have been signed out."
-    });
-
-    navigate("/");
   };
 
   const menuItems = [
-    { icon: User, label: "Account", link: "/account" },
-    { icon: CreditCard, label: "Payment", link: "/wallet" },
-    { icon: Clock, label: "Ride history", link: "/activity" },
-    { icon: Settings, label: "Settings", link: "/settings" },
+    { icon: User, label: "Account", link: "#" },
+    { icon: CreditCard, label: "Payment", link: "#" },
+    { icon: Clock, label: "Ride history", link: "#" },
+    { icon: Settings, label: "Settings", link: "#" },
   ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-
+      
       <div className="max-w-md mx-auto pt-24 px-4">
         <div className="flex items-center space-x-4 mb-8">
           <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-primary">
@@ -100,7 +46,7 @@ const Profile = () => {
             </div>
           </div>
         </div>
-
+        
         <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mb-6">
           {menuItems.map((item, index) => (
             <a 
@@ -115,12 +61,9 @@ const Profile = () => {
             </a>
           ))}
         </div>
-
+        
         <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center px-4 py-3 hover:bg-secondary/50 text-left text-destructive"
-          >
+          <button className="w-full flex items-center px-4 py-3 hover:bg-secondary/50 text-left text-destructive">
             <LogOut className="h-5 w-5 mr-3" />
             <span>Sign out</span>
           </button>

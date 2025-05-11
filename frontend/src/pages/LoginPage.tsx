@@ -6,74 +6,114 @@ import { Apple, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
+import { useUser } from "@/contexts/UserContext";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { loginCustomer } = useUser();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-  
-    if (!email || !password) {
-      toast({
-        title: "Missing fields",
-        description: "Please enter both email and password.",
-        variant: "destructive"
-      });
-      setIsLoading(false);
-      return;
-    }
-  
-    try {
-      const response = await fetch("http://localhost:4001/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
+    
+    // For demo purposes, just check if email and password are provided
+    if (email && password) {
+      // Extract username from email and create a simple profile
+      const username = email.split('@')[0];
+      
+      const customerProfile = {
+        id: `CUST-${Math.floor(Math.random() * 9000) + 1000}`,
+        firstName: username,
+        lastName: "User",
+        address: "123 Main St",
+        city: "San Francisco",
+        state: "CA",
+        zipCode: "94105",
+        phoneNumber: "(555) 123-4567",
+        email: email,
+        rating: 4.5,
+        cardDetails: {
+          last4Digits: "1234",
+          cardType: "Visa",
+          expiryMonth: 12,
+          expiryYear: 2025
         },
-        body: JSON.stringify({ email, password })
-      });
-  
-      const data = await response.json();
-  
-      if (response.ok) {
-        console.log('Token:', data.token);
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", `${data.user.firstName} ${data.user.lastName}`);
+        ridesHistory: [],
+        reviews: [],
+        paymentMethods: [
+          {
+            id: "pm_1",
+            type: "Visa",
+            name: "Personal Card",
+            isDefault: true,
+            last4Digits: "1234"
+          }
+        ]
+      };
+      
+      // Login the customer with the created profile
+      loginCustomer(customerProfile);
+      
+      setTimeout(() => {
+        setIsLoading(false);
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in."
         });
-        navigate("/");
-      } else {
-        toast({
-          title: "Login failed",
-          description: data.message || "Invalid credentials",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+        navigate('/');
+      }, 1000);
+    } else {
+      setIsLoading(false);
       toast({
         title: "Login failed",
-        description: "Network error. Please try again.",
+        description: "Please enter both email and password.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
-  };  
-  
+  };
+
   const handleThirdPartyLogin = (provider: string) => {
     setIsLoading(true);
     
     setTimeout(() => {
-      setIsLoading(false);
-      // Using a generic username based on the provider
-      const username = `${provider}User`;
-      localStorage.setItem('username', username);
+      // Create a customer profile for the third-party login
+      const customerProfile = {
+        id: `CUST-${Math.floor(Math.random() * 9000) + 1000}`,
+        firstName: `${provider}`,
+        lastName: "User",
+        address: "123 Main St",
+        city: "San Francisco",
+        state: "CA",
+        zipCode: "94105",
+        phoneNumber: "(555) 123-4567",
+        email: `${provider.toLowerCase()}@example.com`,
+        rating: 4.5,
+        cardDetails: {
+          last4Digits: "5678",
+          cardType: "Mastercard",
+          expiryMonth: 6,
+          expiryYear: 2026
+        },
+        ridesHistory: [],
+        reviews: [],
+        paymentMethods: [
+          {
+            id: "pm_1",
+            type: "Mastercard",
+            name: `${provider} Account`,
+            isDefault: true,
+            last4Digits: "5678"
+          }
+        ]
+      };
       
+      // Login the customer with the created profile
+      loginCustomer(customerProfile);
+      
+      setIsLoading(false);
       toast({
         title: "Welcome back!",
         description: `You have successfully logged in with ${provider}.`
@@ -172,7 +212,7 @@ const LoginPage = () => {
               className="w-full py-6 bg-black hover:bg-gray-800 text-white"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Continue with email"}
+              {isLoading ? "Signing in..." : "Continue"}
             </Button>
           </form>
           
@@ -181,6 +221,12 @@ const LoginPage = () => {
               Don't have an account?{" "}
               <Link to="/signup" className="text-black font-medium">
                 Sign up
+              </Link>
+            </p>
+            <p className="text-gray-600 mt-2">
+              Are you a driver?{" "}
+              <Link to="/driver/login" className="text-black font-medium">
+                Driver login
               </Link>
             </p>
           </div>

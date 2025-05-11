@@ -37,6 +37,7 @@ const PickupTimeModal = ({ onClose, onSelect }: PickupTimeModalProps) => {
           <Button 
             variant="outline" 
             className="w-full flex items-center justify-between p-4 h-auto text-lg"
+            onClick={() => setDate('Today')}
           >
             <div className="flex items-center">
               <Calendar className="h-6 w-6 mr-3" />
@@ -48,6 +49,7 @@ const PickupTimeModal = ({ onClose, onSelect }: PickupTimeModalProps) => {
           <Button 
             variant="outline" 
             className="w-full flex items-center justify-between p-4 h-auto text-lg"
+            onClick={() => setTime('Now')}
           >
             <div className="flex items-center">
               <Clock className="h-6 w-6 mr-3" />

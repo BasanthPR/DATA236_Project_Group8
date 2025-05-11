@@ -12,4 +12,5 @@ export interface BillingInfo {
   customerId: string;
   predictedPrice?: number;
   actualPrice?: number;
+  accepted?: boolean; // Add this property for tracking ride acceptance status
 }
